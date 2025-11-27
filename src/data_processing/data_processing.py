@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 # Index tickers
 TICKERS = {
-    "CSI300": "000300.SS",
+    "SSE": "000001.SS",
     "KOSPI": "^KS11",
     "TAIEX": "^TWII",
    # "PSEI": "^PSEI",
@@ -152,7 +152,7 @@ def build_clean_datasets(csv_paths):
 
 
 csv_paths = {
-    "CSI300": "data/indices/CSI300_20yr_daily.csv",
+    "SSE": "data/indices/SSE_20yr_daily.csv",
     "KOSPI": "data/indices/KOSPI_20yr_daily.csv",
     "TAIEX": "data/indices/TAIEX_20yr_daily.csv",
     #"PSEI": "data/indices/PSEI_20yr_daily.csv",
