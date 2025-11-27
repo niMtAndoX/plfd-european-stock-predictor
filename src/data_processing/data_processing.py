@@ -1,7 +1,7 @@
 import yfinance as yf
 import pandas as pd
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # Index tickers
 TICKERS = {
@@ -16,7 +16,7 @@ TICKERS = {
 OUTPUT_DIR = Path("data/indices")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# --- Last 20 years ---
+# --- Timespan of collected data ---
 end_date = datetime.today()
 start_date = "2005-01-01"
 
@@ -174,7 +174,6 @@ def main():
         print(f"Saved: {out_path}")
 
 if __name__ == "__main__":
-    print(">>> data_processing.py loaded")
     main()
 
 
