@@ -1,5 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mtick
 from pathlib import Path
 
 
@@ -12,6 +13,7 @@ csv_paths = {
 
 # Output folder for images
 img_dir = Path("data/img")
+img_dir.mkdir(parents=True, exist_ok=True)  # <-- ensure output folder exists
 
 def plot_data_daily():
     for name, path in csv_paths.items():
@@ -24,12 +26,14 @@ def plot_data_daily():
         ax1.plot(df.index, df["Return_t"], color="blue", label="Return_t")
         ax1.set_xlabel("Date")
         ax1.set_ylabel("Return_t", color="blue")
+        ax1.yaxis.set_major_formatter(mtick.PercentFormatter(xmax=1))  # <-- als %
         ax1.tick_params(axis="y", labelcolor="blue")
 
         # Second y-axis for STD_5
         ax2 = ax1.twinx()
         ax2.plot(df.index, df["STD_5"], color="red", label="STD_5")
         ax2.set_ylabel("STD_5", color="red")
+        ax2.yaxis.set_major_formatter(mtick.PercentFormatter(xmax=1))  # <-- als %
         ax2.tick_params(axis="y", labelcolor="red")
 
         plt.title(f"{name} — Return_t & STD_5 over time")
@@ -54,6 +58,8 @@ def plot_all_in_one_daily():
 
     plt.xlabel("Date")
     plt.ylabel("Return_t")
+    ax = plt.gca()
+    ax.yaxis.set_major_formatter(mtick.PercentFormatter(xmax=1))  # <-- als %
     plt.title("Return_t over time — all indices")
     plt.legend()
     plt.tight_layout()
@@ -89,11 +95,13 @@ def plot_data_yearly():
         ax1.plot(yearly_df.index.year, yearly_df["Return"], label="Annual Return", marker="o")
         ax1.set_xlabel("Year")
         ax1.set_ylabel("Return", color="blue")
+        ax1.yaxis.set_major_formatter(mtick.PercentFormatter(xmax=1))  # <-- als %
         ax1.tick_params(axis="y", labelcolor="blue")
 
         ax2 = ax1.twinx()
         ax2.bar(yearly_df.index.year, yearly_df["Volatility"], alpha=0.3, color="gray", label="Annual Volatility")
         ax2.set_ylabel("Volatility (annualized)", color="gray")
+        ax2.yaxis.set_major_formatter(mtick.PercentFormatter(xmax=1))  # <-- als %
         ax2.tick_params(axis="y", labelcolor="gray")
 
         plt.title(f"{name} — Yearly Return & Volatility")
@@ -118,6 +126,8 @@ def plot_all_in_one_yearly():
 
     plt.xlabel("Year")
     plt.ylabel("Annual Return")
+    ax = plt.gca()
+    ax.yaxis.set_major_formatter(mtick.PercentFormatter(xmax=1))  # <-- als %
     plt.title("Annual Return by Index")
     plt.legend()
     plt.grid(True)
@@ -128,10 +138,11 @@ def plot_all_in_one_yearly():
     plt.close()
     print("Saved combined plot to", out_path)
 
-
-if __name__ == "__main__":
+def main():
     plot_data_daily()
     plot_all_in_one_daily()
     plot_data_yearly()
     plot_all_in_one_yearly()
 
+if __name__ == "__main__":
+    main()
