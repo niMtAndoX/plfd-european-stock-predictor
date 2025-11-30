@@ -8,6 +8,16 @@ class BaseModel(ABC):
 
     def __init__(self, name: str):
         self.name = name 
+        self.feature_cols = [
+        "Return_t_1",
+        "Return_t_2",
+        "Return_t_3",
+        "SMA_5",
+        "SMA_10",
+        "STD_5",
+        ]
+
+        self.target_col = "Return_t"
 
     
     # ---------- Data handling ----------
