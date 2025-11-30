@@ -17,7 +17,7 @@ The goal is to evaluate multiple prediction models and identify one that can **r
 
 ### 1️⃣ Clone the Repository
 ```bash
-git clone https://github.com/<your-username>/plfd-european-stock-predictor.git
+git clone https://github.com/niMtAndoX/plfd-european-stock-predictor.git
 cd plfd-european-stock-predictor
 ```
 
