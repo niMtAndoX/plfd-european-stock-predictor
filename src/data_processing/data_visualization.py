@@ -4,19 +4,26 @@ import matplotlib.ticker as mtick
 from pathlib import Path
 
 
+# Use pathlib for OS-independent paths and verify files exist before reading
+csv_dir = Path("data") / "clean_features"
 csv_paths = {
-    "SSE": "data\clean_features\SSE_features.csv",
-    "KOSPI": "data\clean_features\KOSPI_features.csv",
-    "TAIEX": "data\clean_features\TAIEX_features.csv",
-    "STOXX600": "data\clean_features\STOXX600_features.csv",
+    "SSE": csv_dir / "SSE_features.csv",
+    "KOSPI": csv_dir / "KOSPI_features.csv",
+    "TAIEX": csv_dir / "TAIEX_features.csv",
+    "STOXX600": csv_dir / "STOXX600_features.csv",
 }
 
 # Output folder for images
-img_dir = Path("data/img")
+img_dir = Path("data") / "img"
 img_dir.mkdir(parents=True, exist_ok=True)  # <-- ensure output folder exists
 
 def plot_data_daily():
     for name, path in csv_paths.items():
+        path = Path(path)
+        if not path.exists():
+            print(f"Warning: file not found, skipping {name}: {path}")
+            continue
+
         df = pd.read_csv(path, parse_dates=["Date"])
         df = df.set_index("Date")
 
@@ -50,6 +57,11 @@ def plot_all_in_one_daily():
     plt.figure(figsize=(14, 7), dpi=200)
 
     for name, path in csv_paths.items():
+        path = Path(path)
+        if not path.exists():
+            print(f"Warning: file not found, skipping {name}: {path}")
+            continue
+
         df = pd.read_csv(path, parse_dates=["Date"])
         df = df.set_index("Date")
 
@@ -72,6 +84,11 @@ def plot_all_in_one_daily():
 
 def plot_data_yearly():
     for name, path in csv_paths.items():
+        path = Path(path)
+        if not path.exists():
+            print(f"Warning: file not found, skipping {name}: {path}")
+            continue
+
         df = pd.read_csv(path, parse_dates=["Date"])
         df = df.set_index("Date")
 
@@ -116,6 +133,11 @@ def plot_all_in_one_yearly():
     plt.figure(figsize=(14, 7), dpi=200)
 
     for name, path in csv_paths.items():
+        path = Path(path)
+        if not path.exists():
+            print(f"Warning: file not found, skipping {name}: {path}")
+            continue
+
         df = pd.read_csv(path, parse_dates=["Date"])
         df = df.set_index("Date")
 
