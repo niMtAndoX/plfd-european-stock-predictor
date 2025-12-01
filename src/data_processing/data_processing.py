@@ -9,7 +9,8 @@ TICKERS = {
     "KOSPI": "^KS11",
     "TAIEX": "^TWII",
    # "PSEI": "^PSEI",
-    "STOXX600": "^STOXX"
+    "STOXX600": "^STOXX",
+    "NIKKEI225": "^N225"
 }
 
 # Output folder
@@ -157,6 +158,8 @@ csv_paths = {
     "TAIEX": "data/indices/TAIEX_20yr_daily.csv",
     #"PSEI": "data/indices/PSEI_20yr_daily.csv",
     "STOXX600": "data/indices/STOXX600_20yr_daily.csv",
+    "NIKKEI225": "data/indices/NIKKEI225_20yr_daily.csv",
+
 }
 
 def main():

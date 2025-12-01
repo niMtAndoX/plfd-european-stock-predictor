@@ -11,6 +11,8 @@ csv_paths = {
     "KOSPI": csv_dir / "KOSPI_features.csv",
     "TAIEX": csv_dir / "TAIEX_features.csv",
     "STOXX600": csv_dir / "STOXX600_features.csv",
+    "NIKKEI225": csv_dir / "NIKKEI225_features.csv",
+
 }
 
 # Output folder for images
