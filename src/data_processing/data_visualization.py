@@ -97,10 +97,10 @@ def plot_data_yearly():
         # --- Compute yearly performance & volatility ---
         # We assume Return_t is daily return, e.g. pct_change-based
         # 1) Compute cumulative annual return
-        yearly_return = (1 + df["Return_t"]).resample("Y").prod() - 1
+        yearly_return = (1 + df["Return_t"]).resample("YE").prod() - 1
 
         # 2) Compute annualized volatility (std of returns * sqrt(252))
-        yearly_vol = df["Return_t"].resample("Y").std() * (252 ** 0.5)
+        yearly_vol = df["Return_t"].resample("YE").std() * (252 ** 0.5)
 
         # Combine into one DataFrame for plotting
         yearly_df = pd.DataFrame({
@@ -144,7 +144,7 @@ def plot_all_in_one_yearly():
         df = df.set_index("Date")
 
         # compute yearly return: compound daily returns within each year
-        yearly_return = (1 + df["Return_t"]).resample("Y").prod() - 1
+        yearly_return = (1 + df["Return_t"]).resample("YE").prod() - 1
 
         plt.plot(yearly_return.index.year, yearly_return.values, label=name)
 
