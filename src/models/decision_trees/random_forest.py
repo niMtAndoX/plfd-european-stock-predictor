@@ -16,29 +16,29 @@ class RandomForestModel(BaseModel):
     a stock index using engineered features.
     """
 
-def __init__(
-    self,
-    name: str = "RandomForest",
-    n_estimators: int = 500,      # number of trees (VERY important)
-    max_depth: int | None = 8,    # tree depth (controls overfitting)
-    max_features: str | int | float | None = 3,  # features per split
-    min_samples_split: int = 6,   # minimum samples to split a node
-    min_samples_leaf: int = 3,    # leaves must have at least this many samples
-    bootstrap: bool = True,       # bootstrap sampling (usually True)
-    random_state: int = 42,       # reproducibility
-):
-    super().__init__(name)
+    def __init__(
+        self,
+        name: str = "RandomForest",
+        n_estimators: int = 500,      # number of trees (VERY important)
+        max_depth: int | None = 8,    # tree depth (controls overfitting)
+        max_features: str | int | float | None = 3,  # features per split
+        min_samples_split: int = 6,   # minimum samples to split a node
+        min_samples_leaf: int = 3,    # leaves must have at least this many samples
+        bootstrap: bool = True,       # bootstrap sampling (usually True)
+        random_state: int = 42,       # reproducibility
+    ):
+        super().__init__(name)
 
-    self.model = RandomForestRegressor(
-        n_estimators=n_estimators,
-        max_depth=max_depth,
-        max_features=max_features,
-        min_samples_split=min_samples_split,
-        min_samples_leaf=min_samples_leaf,
-        bootstrap=bootstrap,
-        random_state=random_state,
-        n_jobs=-1  # use all CPU cores
-    )
+        self.model = RandomForestRegressor(
+            n_estimators=n_estimators,
+            max_depth=max_depth,
+            max_features=max_features,
+            min_samples_split=min_samples_split,
+            min_samples_leaf=min_samples_leaf,
+            bootstrap=bootstrap,
+            random_state=random_state,
+            n_jobs=-1  # use all CPU cores
+        )
 
 
     # -------------------------------------------------------
