@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
 
-from base_model import BaseModel
+from src.models.base_model import BaseModel
 
 
 # ---------------------------------------------------------
@@ -161,6 +161,19 @@ class SACLSTMModel(BaseModel):
     # Training
     # -----------------------------------------------------
     def fit(self, X_train, y_train, X_val=None, y_val=None):
+        # If model wasn't built via prepare_data on this instance, build now
+        if self.model is None:
+            # X_train is (B, T, F)
+            num_features = X_train.shape[2]
+            self.model = SACLSTMBackbone(
+                in_features=num_features,
+                conv_channels=self.conv_channels,
+                kernel_size=self.kernel_size,
+                lstm_hidden=self.lstm_hidden,
+                lstm_layers=self.lstm_layers,
+                dropout=self.dropout,
+            ).to(self.device)
+
         X_train = torch.tensor(X_train, dtype=torch.float32).to(self.device)
         y_train = torch.tensor(y_train, dtype=torch.float32).unsqueeze(1).to(self.device)
 
@@ -204,4 +217,3 @@ class SACLSTMModel(BaseModel):
         rmse = float(mse ** 0.5)
         return {"mse": mse, "mae": mae, "rmse": rmse}
 
-    

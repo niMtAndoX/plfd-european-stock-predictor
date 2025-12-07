@@ -7,7 +7,7 @@ import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 
-from base_model import BaseModel   # <-- your abstract class goes here
+from src.models.base_model import BaseModel   # <-- use src.models here
 
 
 class RandomForestModel(BaseModel):
@@ -50,8 +50,8 @@ class RandomForestModel(BaseModel):
         """
         df_clean = df.dropna().copy()
 
-        X = df_clean[super.feature_cols].astype(float).values
-        y = df_clean[super.target_col].astype(float).values
+        X = df_clean[self.feature_cols].astype(float).values
+        y = df_clean[self.target_col].astype(float).values
 
         return X, y
 
@@ -88,4 +88,3 @@ class RandomForestModel(BaseModel):
             "mae": mean_absolute_error(y_test, preds),
         }
 
-    

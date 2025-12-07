@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
 
-from base_model import BaseModel
+from src.models.base_model import BaseModel
 
 
 class CNNModel(BaseModel):
@@ -104,6 +104,13 @@ class CNNModel(BaseModel):
     # Fit model
     # ------------------------------------------------------------------
     def fit(self, X_train, y_train, X_val=None, y_val=None):
+        # If model not built (e.g. fit called without prepare_data on this instance),
+        # build it from X_train shape.
+        if self.model is None:
+            # X_train is (B, C, T) here
+            num_features = X_train.shape[1]
+            self._build_network(num_features)
+
         X_train = torch.tensor(X_train, dtype=torch.float32).to(self.device)
         y_train = torch.tensor(y_train, dtype=torch.float32).unsqueeze(1).to(self.device)
 

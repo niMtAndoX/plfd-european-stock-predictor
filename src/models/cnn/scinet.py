@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
 
-from base_model import BaseModel
+from src.models.base_model import BaseModel
 
 
 # ---------------------------------------------------------
@@ -328,4 +328,3 @@ class SCINetModel(BaseModel):
         rmse = float(mse ** 0.5)
         return {"mse": mse, "mae": mae, "rmse": rmse}
 
-    
