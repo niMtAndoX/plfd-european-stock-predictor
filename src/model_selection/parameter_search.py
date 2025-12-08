@@ -1,5 +1,3 @@
-# src/model_selection/parameter_search.py
-
 """
 Grid search over each model's hyperparameter space using K-fold CV.
 """
@@ -9,11 +7,13 @@ from typing import Dict, Any, Tuple
 
 import itertools
 import json
-import os
 from pathlib import Path
+import os
 
 from .model_registry import MODEL_REGISTRY
 from .cross_validation import cross_validate_on_dataframe
+
+import pandas as pd  
 
 
 def param_grid(search_space: Dict[str, list]):
@@ -57,42 +57,62 @@ def run_full_model_selection(
     output_path: str | Path | None = None,
 ) -> Dict[str, Dict[str, Any]]:
     """
-    Run hyperparameter search for ALL (or a subset of) models in the registry.
+    Run hyperparameter search for ALL models in the registry
+    (or a subset if ACTIVE_MODELS env var is set).
 
     Returns:
         results dict: {model_name: {"best_params":{...}, "cv_rmse": float}}
     """
-    # Optional filter via env var, e.g. ACTIVE_MODELS="CNN,RNN"
-    active = os.environ.get("ACTIVE_MODELS")
-    if active:
-        active_set = {name.strip().upper() for name in active.split(",")}
+    results: Dict[str, Dict[str, Any]] = {}
+
+    # optional incremental CSV path: same dir as JSON, but CSV
+    csv_path: Path | None = None
+    if output_path is not None:
+        output_path = Path(output_path)
+        csv_path = output_path.with_suffix(".csv")
+
+    # --- filter models by ACTIVE_MODELS env var (comma-separated list) ---
+    active_env = os.environ.get("ACTIVE_MODELS")
+    if active_env:
+        active_set = {name.strip().upper() for name in active_env.split(",") if name.strip()}
         model_items = {
             name: info
             for name, info in MODEL_REGISTRY.items()
             if name.upper() in active_set
         }
+        print(f"[parameter_search] ACTIVE_MODELS set -> running: {list(model_items.keys())}")
     else:
         model_items = MODEL_REGISTRY
-
-    print("[parameter_search] Starting full model selection")
-    print(f"[parameter_search] Models to run: {list(model_items.keys())}")
-
-    results: Dict[str, Dict[str, Any]] = {}
+        print(f"[parameter_search] ACTIVE_MODELS not set -> running all models: {list(model_items.keys())}")
 
     for model_name, info in model_items.items():
         print(f"\n=== Searching best parameters for {model_name} ===")
         best_params, best_rmse = search_best_params_for_model(
             model_name, info, df, k_folds=k_folds
         )
-        # Show which model+params were finally trained/evaluated as best
         print(f"[{model_name}] Finished search. Best params: {best_params}")
         results[model_name] = {
             "best_params": best_params,
             "cv_rmse": best_rmse,
         }
 
+        # ---- incremental CSV save after each model ----
+        if csv_path is not None:
+            rows = []
+            for m_name, m_info in results.items():
+                row = {"model": m_name, "cv_rmse": m_info["cv_rmse"]}
+                # flatten best_params dict into columns
+                for k, v in m_info["best_params"].items():
+                    row[f"param_{k}"] = v
+                rows.append(row)
+
+            df_partial = pd.DataFrame(rows)
+            csv_path.parent.mkdir(parents=True, exist_ok=True)
+            df_partial.to_csv(csv_path, index=False)
+            print(f"[parameter_search] Incremental CSV saved to {csv_path}")
+
     if output_path is not None:
-        output_path = Path(output_path)
+        # output_path already converted to Path above
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with output_path.open("w", encoding="utf-8") as f:
             json.dump(results, f, indent=2)

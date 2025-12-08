@@ -22,7 +22,6 @@ def run_module(module_name: str, project_root: Path, extra_env: dict | None = No
     if extra_env:
         env.update(extra_env)
 
-    # Let child write directly to our stdout/stderr (no buffering in Python)
     result = subprocess.run(
         [sys.executable, "-m", module_name],
         env=env,
@@ -39,11 +38,27 @@ def run_module(module_name: str, project_root: Path, extra_env: dict | None = No
 def main():
     ROOT = Path(__file__).resolve().parent.parent  # project root (inner folder)
 
-    # 1) ETL PIPELINE
-    run_module("src.data_processing.etl_pipeline", ROOT)
+    # Toggle ETL step here (or via env var)
+    RUN_ETL = False  # set to True when you want to re-run downloads & feature building
 
-    # 2) MODEL SELECTION (all models)
-    run_module("src.model_selection.run_selection", ROOT)
+    # 1) ETL PIPELINE
+    if RUN_ETL:
+        run_module("src.data_processing.etl_pipeline", ROOT)
+    else:
+        print("⏭ Skipping ETL pipeline (RUN_ETL is False)")
+
+    # 2) MODEL SELECTION (all models except CNN and SACLSTM)
+    # Keys must match MODEL_REGISTRY (CNN, SACLSTM, SCINET, RANDOM_FOREST, ...)
+    active_models = (
+        "SCINET,RANDOM_FOREST,XGBOOST,"
+        "RNN,MTSMFF,DILATED_RNN,"
+        "TRANSFORMER,TFT,PYRAFORMER,PREFORMER,AUTOFORMER"
+    )
+    run_module(
+        "src.model_selection.run_selection",
+        ROOT,
+        extra_env={"ACTIVE_MODELS": active_models},
+    )
 
     # 3) MODEL EVALUATION
     run_module("src.evaluation.evaluate_models", ROOT)

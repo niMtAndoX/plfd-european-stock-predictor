@@ -28,15 +28,34 @@ def merge_even_odd(x_even: torch.Tensor, x_odd: torch.Tensor, T: int) -> torch.T
     """
     Füge gerade/ungerade Sequenz wieder zu Länge T zusammen.
     Erwartet x_even/x_odd mit gleicher Batch/Channel-Form.
+    Ist die Zeitlänge durch rekursive Splits leicht unterschiedlich,
+    wird auf die jeweils gültige Minimallänge zugeschnitten.
     """
     B, C, Te = x_even.shape
     _, _, To = x_odd.shape
+
+    # Minimale gültige Länge pro Strang
+    max_even_pos = min(Te, (T + 1) // 2)   # Anzahl gerader Indizes in [0, T-1]
+    max_odd_pos = min(To, T // 2)          # Anzahl ungerader Indizes
+
+    # Zuschneiden, falls nötig
+    if Te != max_even_pos:
+        x_even = x_even[..., :max_even_pos]
+    if To != max_odd_pos:
+        x_odd = x_odd[..., :max_odd_pos]
+
     out = torch.zeros(B, C, T, device=x_even.device, dtype=x_even.dtype)
 
-    out[..., 0::2] = x_even
-    out[..., 1::2] = x_odd
+    # Fülle gerade Positionen
+    if max_even_pos > 0:
+        out[..., 0 : 2 * max_even_pos : 2] = x_even
 
-    # Falls die Sequenz ungerade Länge hatte, wird der letzte Step von even/odd aufgefüllt.
+    # Fülle ungerade Positionen
+    if max_odd_pos > 0:
+        out[..., 1 : 2 * max_odd_pos + 1 : 2] = x_odd
+
+    # Falls aufgrund von Rundung ein letzter Zeitschritt leer bleibt,
+    # lassen wir ihn einfach bei 0 (oder man könnte den letzten Wert wiederholen).
     return out
 
 
@@ -83,12 +102,29 @@ class SCIBlock(nn.Module):
         x: (B, C, T)
         """
         x_even, x_odd = split_even_odd(x)
+        B, C, T_even = x_even.shape
+        _, _, T_odd = x_odd.shape
 
-        # Interaktive Lernschritte (stark vereinfachte Version des Papers):
         psi_xe = self.psi(x_even)
         phi_xo = self.phi(x_odd)
         eta_xe = self.eta(x_even)
         rho_xo = self.rho(x_odd)
+
+        # Längen ggf. angleichen (auf minimale gemeinsame Länge)
+        min_len_odd = min(T_odd, psi_xe.shape[-1], eta_xe.shape[-1])
+        min_len_even = min(T_even, phi_xo.shape[-1], rho_xo.shape[-1])
+
+        if psi_xe.shape[-1] != min_len_odd or eta_xe.shape[-1] != min_len_odd:
+            psi_xe = psi_xe[..., :min_len_odd]
+            eta_xe = eta_xe[..., :min_len_odd]
+        if x_odd.shape[-1] != min_len_odd:
+            x_odd = x_odd[..., :min_len_odd]
+
+        if phi_xo.shape[-1] != min_len_even or rho_xo.shape[-1] != min_len_even:
+            phi_xo = phi_xo[..., :min_len_even]
+            rho_xo = rho_xo[..., :min_len_even]
+        if x_even.shape[-1] != min_len_even:
+            x_even = x_even[..., :min_len_even]
 
         h_odd = x_odd * torch.exp(psi_xe) + eta_xe
         h_even = x_even * torch.exp(phi_xo) + rho_xo
@@ -96,7 +132,6 @@ class SCIBlock(nn.Module):
         h_odd = self.dropout(h_odd)
         h_even = self.dropout(h_even)
 
-        # Rekombiniere zu ursprünglicher Länge
         T = x.size(-1)
         out = merge_even_odd(h_even, h_odd, T)
         return out
@@ -132,18 +167,16 @@ class SCINetBlock(nn.Module):
         """
         B, C, T = x.shape
 
-        # Ein SCI-Block auf der aktuellen Ebene
         x_even, x_odd = split_even_odd(x)
 
         x_even = self.block(x_even)
         x_odd = self.block(x_odd)
 
-        # Falls weitere Levels vorhanden sind: rekursiv
         if self.levels > 1:
             x_even = self.sub_left(x_even)
             x_odd = self.sub_right(x_odd)
 
-        # Wieder zusammenführen auf Länge T
+        # Stelle sicher, dass die Längen mit dem ursprünglichen T vereinbar sind
         out = merge_even_odd(x_even, x_odd, T)
         return out
 
@@ -285,6 +318,20 @@ class SCINetModel(BaseModel):
     # Training
     # -----------------------------------------------------
     def fit(self, X_train, y_train, X_val=None, y_val=None):
+        # If model wasn't built via prepare_data on this instance, build now.
+        # In CV, X_train comes in as (B, C, T).
+        if self.model is None:
+            num_features = X_train.shape[1]
+            self.model = SCINetBackbone(
+                in_channels=num_features,
+                seq_len=self.seq_len,
+                stacks=self.stacks,
+                levels=self.levels,
+                hidden_channels=self.hidden_channels,
+                kernel_size=self.kernel_size,
+                dropout=self.dropout,
+            ).to(self.device)
+
         X_train = torch.tensor(X_train, dtype=torch.float32).to(self.device)
         y_train = torch.tensor(y_train, dtype=torch.float32).unsqueeze(1).to(self.device)
 

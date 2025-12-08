@@ -1,5 +1,3 @@
-# src/model_selection/run_selection.py
-
 """
 Entry point to run hyperparameter search for all models.
 
@@ -12,7 +10,7 @@ import pandas as pd
 import os
 import sys
 
-print("[run_selection] Module imported")  # <--- new: runs as soon as module loads
+print("[run_selection] Module imported")  
 
 from .parameter_search import run_full_model_selection
 

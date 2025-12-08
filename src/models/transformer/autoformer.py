@@ -1,5 +1,3 @@
-# autoformer_model.py
-#
 # Simplified Autoformer implementation (Auto-Correlation + Series Decomposition)
 # Compatible with your BaseModel interface.
 
