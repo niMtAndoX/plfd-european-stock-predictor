@@ -169,6 +169,23 @@ class TransformerModel(BaseModel):
     # Training
     # -----------------------------------------------------
     def fit(self, X_train, y_train, X_val=None, y_val=None):
+        # Ensure model is initialized even when prepare_data() was not called on this instance
+        if self.model is None:
+            if X_train.ndim != 3:
+                raise ValueError(
+                    f"{self.name}.fit expected X_train with shape (B, T, F), "
+                    f"got {X_train.shape}"
+                )
+            num_features = X_train.shape[2]
+            self.model = TransformerBackbone(
+                in_features=num_features,
+                d_model=self.d_model,
+                nhead=self.nhead,
+                num_layers=self.num_layers,
+                dim_feedforward=self.dim_feedforward,
+                dropout=self.dropout,
+            ).to(self.device)
+
         X_train = torch.tensor(X_train, dtype=torch.float32).to(self.device)
         y_train = torch.tensor(y_train, dtype=torch.float32).unsqueeze(1).to(self.device)
 

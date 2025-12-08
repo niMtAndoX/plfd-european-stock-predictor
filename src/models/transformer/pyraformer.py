@@ -224,6 +224,8 @@ class PyraformerModel(BaseModel):
         self.device = device or ("cuda" if torch.cuda.is_available() else "cpu")
 
         self.model: nn.Module | None = None
+        # store cov feature count so we can reshape flattened X later
+        self._cov_size: int | None = None
 
     # -----------------------------------------------------
     # Data prep:
@@ -255,6 +257,7 @@ class PyraformerModel(BaseModel):
 
         obs_size = 1
         cov_size = X_cov.shape[2]
+        self._cov_size = cov_size  # remember for reshaping
 
         if self.model is None:
             self.model = PyraformerBackbone(
@@ -271,11 +274,66 @@ class PyraformerModel(BaseModel):
 
         return (X_obs, X_cov), y
 
+    # Optional helper for cross_validation: return a single X array
+    def prepare_xy(self, df: pd.DataFrame):
+        """
+        Helper to make this model compatible with cross_validate_on_dataframe,
+        which expects X to be a single np.ndarray, not a tuple.
+        We flatten obs and cov along the feature dimension:
+            X_flat: (B, T, 1 + F_cov)
+        """
+        (X_obs, X_cov), y = self.prepare_data(df)
+        # concat along last dim -> (B, T, 1 + F_cov)
+        X_flat = np.concatenate([X_obs, X_cov], axis=2)
+        return X_flat, y
+
+    # internal: split flattened X back into (X_obs, X_cov)
+    def _split_obs_cov(self, X: np.ndarray):
+        if X.ndim != 3:
+            raise ValueError(
+                f"{self.name} expects X with shape (B, T, F_flat), got {X.shape}"
+            )
+        if self._cov_size is None:
+            # infer cov_size assuming first channel is obs
+            self._cov_size = X.shape[2] - 1
+        obs = X[:, :, :1]
+        cov = X[:, :, 1 : 1 + self._cov_size]
+        return obs, cov
+
     # -----------------------------------------------------
     # Training
     # -----------------------------------------------------
     def fit(self, X_train, y_train, X_val=None, y_val=None):
-        X_obs_train, X_cov_train = X_train
+        # Allow either tuple ((X_obs, X_cov)) or flattened X
+        if isinstance(X_train, tuple):
+            X_obs_train, X_cov_train = X_train
+        else:
+            X_train_arr = np.asarray(X_train)
+            X_obs_train, X_cov_train = self._split_obs_cov(X_train_arr)
+
+        # Lazily initialize backbone if needed (e.g. in CV)
+        if self.model is None:
+            if isinstance(X_train, tuple):
+                # we already have shapes
+                _, T, _ = X_obs_train.shape
+                cov_size = X_cov_train.shape[2]
+            else:
+                # X_train_arr: (B, T, 1 + F_cov)
+                _, T, F_flat = X_train_arr.shape
+                cov_size = F_flat - 1
+            self._cov_size = cov_size
+            self.model = PyraformerBackbone(
+                obs_size=1,
+                cov_size=cov_size,
+                d_model=self.d_model,
+                n_heads=self.n_heads,
+                num_layers=self.num_layers,
+                d_ff=self.d_ff,
+                dropout=self.dropout,
+                pool_stride=self.pool_stride,
+                out_len=self.out_len,
+            ).to(self.device)
+
         X_obs_train = torch.tensor(X_obs_train, dtype=torch.float32).to(self.device)
         X_cov_train = torch.tensor(X_cov_train, dtype=torch.float32).to(self.device)
         y_train = torch.tensor(y_train, dtype=torch.float32).to(self.device)
@@ -303,7 +361,11 @@ class PyraformerModel(BaseModel):
     # Prediction
     # -----------------------------------------------------
     def predict(self, X):
-        X_obs, X_cov = X
+        if isinstance(X, tuple):
+            X_obs, X_cov = X
+        else:
+            X_obs, X_cov = self._split_obs_cov(np.asarray(X))
+
         X_obs = torch.tensor(X_obs, dtype=torch.float32).to(self.device)
         X_cov = torch.tensor(X_cov, dtype=torch.float32).to(self.device)
 

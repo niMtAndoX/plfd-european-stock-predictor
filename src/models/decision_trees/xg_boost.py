@@ -57,9 +57,12 @@ class XGBoostModel(BaseModel):
 
     def evaluate(self, X_test, y_test):
         preds = self.predict(X_test)
+        mse = mean_squared_error(y_test, preds)
+        rmse = float(np.sqrt(mse))
         return {
-            "mse": mean_squared_error(y_test, preds),
+            "mse": mse,
+            "rmse": rmse,  # required by cross_validate_on_dataframe
             "mae": mean_absolute_error(y_test, preds),
-            }
+        }
 
 

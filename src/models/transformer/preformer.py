@@ -273,6 +273,36 @@ class PreformerModel(BaseModel):
     # Training
     # -----------------------------------------------------
     def fit(self, X_train, y_train, X_val=None, y_val=None):
+        # Ensure model is initialized even when prepare_data() was not called
+        if self.model is None:
+            if isinstance(X_train, np.ndarray):
+                if X_train.ndim != 3:
+                    raise ValueError(
+                        f"{self.name}.fit expected X_train with shape (B, T, F), "
+                        f"got {X_train.shape}"
+                    )
+                in_features = X_train.shape[2]
+            else:
+                X_arr = np.asarray(X_train)
+                if X_arr.ndim != 3:
+                    raise ValueError(
+                        f"{self.name}.fit expected X_train with shape (B, T, F), "
+                        f"got {X_arr.shape}"
+                    )
+                in_features = X_arr.shape[2]
+                X_train = X_arr
+
+            self.model = PreformerBackbone(
+                in_features=in_features,
+                seq_len=self.seq_len,
+                out_len=self.out_len,
+                d_model=self.d_model,
+                seg_lens=self.seg_lens,
+                num_layers=self.num_layers,
+                d_ff=self.d_ff,
+                dropout=self.dropout,
+            ).to(self.device)
+
         X_train = torch.tensor(X_train, dtype=torch.float32).to(self.device)
         y_train = torch.tensor(y_train, dtype=torch.float32).to(self.device)
 

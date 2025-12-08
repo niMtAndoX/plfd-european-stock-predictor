@@ -185,6 +185,23 @@ class MTSMFFModel(BaseModel):
     # Training
     # -----------------------------------------------------
     def fit(self, X_train, y_train, X_val=None, y_val=None):
+        # Ensure model is initialized even when prepare_data() was not called on this instance
+        if self.model is None:
+            if X_train.ndim != 3:
+                raise ValueError(
+                    f"{self.name}.fit expected X_train with shape (B, T, F), "
+                    f"got {X_train.shape}"
+                )
+            num_features = X_train.shape[2]
+            self.model = MTSMFFBackbone(
+                in_features=num_features,
+                enc_hidden=self.enc_hidden,
+                dec_hidden=self.dec_hidden,
+                num_layers=self.num_layers,
+                out_len=self.out_len,
+                dropout=self.dropout,
+            ).to(self.device)
+
         X_train = torch.tensor(X_train, dtype=torch.float32).to(self.device)
         y_train = torch.tensor(y_train, dtype=torch.float32).to(self.device)
 

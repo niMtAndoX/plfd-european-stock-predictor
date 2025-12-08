@@ -1,4 +1,3 @@
-
 """
 Generic K-fold cross validation for any BaseModel subclass.
 
@@ -31,24 +30,46 @@ def cross_validate_on_dataframe(
     Returns:
         mean_rmse over folds (we minimize this)
     """
-    # Prepare full dataset once for these params (seq_len & out_len are inside params)
-    # We use a temporary model instance just for data prep.
+    # Build X, y for the full dataset once
     tmp_model = model_class(**params)
-    X, y = tmp_model.prepare_data(df)
+    # --- NEW: use prepare_xy if the model provides it, else prepare_data ---
+    if hasattr(tmp_model, "prepare_xy"):
+        X, y = tmp_model.prepare_xy(df)
+    else:
+        X, y = tmp_model.prepare_data(df)
+    # --- END NEW ---
 
-    X = np.array(X)
-    y = np.array(y)
+    X = np.asarray(X)
+    y = np.asarray(y)
+    n_samples = len(X)
 
-    kf = KFold(n_splits=k, shuffle=shuffle, random_state=random_state)
+    if n_samples < 2:
+        raise ValueError(
+            f"Not enough samples for cross-validation (n_samples={n_samples})."
+        )
+
+    # Do not request more folds than samples
+    effective_k = min(k, n_samples)
+    if effective_k < 2:
+        # We already ensured n_samples >= 2, so this is just a safety net
+        effective_k = 2
+
+    kf = KFold(n_splits=effective_k, shuffle=shuffle, random_state=random_state)
 
     rmses = []
 
     for fold, (train_idx, val_idx) in enumerate(kf.split(X), start=1):
+        # Slice precomputed arrays; do NOT call prepare_data/prepare_xy again
         X_train, X_val = X[train_idx], X[val_idx]
         y_train, y_val = y[train_idx], y[val_idx]
 
-        # New model per fold to avoid weight leakage
         model = model_class(**copy.deepcopy(params))
+
+        # For models with prepare_xy/prepare_data, X_train/Y_train are already in
+        # the correct array form expected by fit()/evaluate(), so just use them.
+        X_train = np.asarray(X_train)
+        X_val = np.asarray(X_val)
+
         model.fit(X_train, y_train)
         metrics = model.evaluate(X_val, y_val)
 

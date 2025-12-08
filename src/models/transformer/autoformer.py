@@ -21,19 +21,40 @@ class SeriesDecomp(nn.Module):
     """Moving average decomposition used in Autoformer."""
     def __init__(self, kernel_size: int = 25):
         super().__init__()
-        padding = (kernel_size - 1) // 2
-        self.avg = nn.AvgPool1d(
-            kernel_size=kernel_size,
-            stride=1,
-            padding=padding
-        )
+        self.kernel_size = int(kernel_size)
 
     def forward(self, series: torch.Tensor):
         """
         series: (B, T, D)
-        returns: seasonal, trend
+        returns: seasonal, trend, both (B, T, D)
         """
-        trend = self.avg(series.permute(0,2,1)).permute(0,2,1)
+        B, T, D = series.shape
+        k = self.kernel_size
+
+        # (B, D, T) for easier time-axis operations
+        x = series.permute(0, 2, 1)  # (B, D, T)
+
+        # pad both ends with edge values, length k//2 on each side
+        half = k // 2
+        left_pad = x[:, :, :1].expand(-1, -1, half)
+        right_pad = x[:, :, -1:].expand(-1, -1, half)
+        x_padded = torch.cat([left_pad, x, right_pad], dim=2)  # (B, D, T + 2*half)
+
+        # cumulative sum along time -> moving average over windows of size k
+        cumsum = torch.cumsum(x_padded, dim=2)
+        # window sum: sum[t : t+k] = cumsum[t+k-1] - cumsum[t-1]
+        # build indices so output has exactly length T
+        start = 0
+        end = start + k
+        # cumsum has length T + 2*half; we want T windows
+        # window_sums: (B, D, T)
+        window_sums = cumsum[:, :, start + k - 1 : start + k - 1 + T] - torch.cat(
+            [torch.zeros_like(cumsum[:, :, :1]), cumsum[:, :, :T - 1]], dim=2
+        )
+
+        trend = window_sums / float(k)          # (B, D, T)
+        trend = trend.permute(0, 2, 1)          # (B, T, D)
+
         seasonal = series - trend
         return seasonal, trend
 
@@ -172,31 +193,51 @@ class AutoformerBackbone(nn.Module):
         x: (B, seq_len, F)
         Returns predictions: (B, out_len)
         """
-
-        x = self.input_proj(x)
+        x = self.input_proj(x)  # (B, T_enc, d_model)
 
         # ------- Encoder -------
-        memory = x
+        memory = x                       # (B, T_enc, d_model)
         trend_sum = 0
         for layer in self.encoder_layers:
-            seasonal, trend = layer(memory)
+            seasonal, trend = layer(memory)   # both (B, T_enc, d_model)
             memory = seasonal
-            trend_sum += trend[:, -1, :]  # last trend element
+            trend_sum += trend[:, -1, :]      # accumulate last trend element
 
         # ------- Decoder -------
-        # Decoder input is zeros for seasonal and trend init
-        seasonal_dec = torch.zeros_like(memory[:, -self.out_len:, :])
-        trend_dec = torch.zeros_like(memory[:, -self.out_len:, :])
+        B, T_enc, D = memory.shape
+        T_dec = self.out_len
 
-        dec_x = seasonal_dec + trend_dec
+        # Decoder seasonal/trend inputs: zeros with length out_len
+        seasonal_dec = torch.zeros(B, T_dec, D, device=memory.device, dtype=memory.dtype)
+        trend_dec = torch.zeros_like(seasonal_dec)
+
+        dec_x = seasonal_dec + trend_dec      # (B, T_dec, D)
+
+        # Expand encoder trend summary across decoder horizon
+        # trend_sum: (B, D) -> (B, T_dec, D)
+        trend_base = trend_sum.unsqueeze(1).expand(B, T_dec, D)
 
         for layer in self.decoder_layers:
-            seasonal, trend = layer(dec_x, memory)
+            seasonal, trend = layer(dec_x, memory)  # both (B, T_dec, D)
             dec_x = seasonal
-            trend_sum = trend_sum.unsqueeze(1) + trend  # broadcast
+            # refine trend by adding decoder trend
+            trend_base = trend_base + trend
 
         # Final output projection: combine seasonal + trend components
-        y = self.projection(dec_x + trend_sum).squeeze(-1)  # (B, out_len)
+        y_full = self.projection(dec_x + trend_base).squeeze(-1)  # (B, T_dec)
+
+        # Ensure the returned shape is (B, out_len):
+        B, T_dec = y_full.shape
+        if T_dec == self.out_len:
+            y = y_full
+        else:
+            # Simple reduction: take the last out_len steps if T_dec > out_len,
+            # or average over time and repeat to match out_len if T_dec < out_len.
+            if T_dec > self.out_len:
+                y = y_full[:, -self.out_len:]
+            else:
+                mean_step = y_full.mean(dim=1, keepdim=True)  # (B, 1)
+                y = mean_step.repeat(1, self.out_len)         # (B, out_len)
 
         return y
 
@@ -256,11 +297,13 @@ class AutoformerModel(BaseModel):
             X.append(X_raw[i:i+self.seq_len])
             y.append(y_raw[i+self.seq_len:i+self.seq_len+self.out_len])
 
-        X = np.array(X)
-        y = np.array(y)
+        X = np.array(X)          # (B, seq_len, F)
+        y = np.array(y)          # (B, out_len) or (B,)
+
+        if y.ndim == 1:
+            y = y.reshape(-1, self.out_len)
 
         in_features = X.shape[2]
-
         if self.model is None:
             self.model = AutoformerBackbone(
                 in_features=in_features,
@@ -280,23 +323,52 @@ class AutoformerModel(BaseModel):
     # Training
     # -----------------------------------------------------
     def fit(self, X_train, y_train, X_val=None, y_val=None):
+        # Lazily initialize backbone if prepare_data() was not called on this instance
+        if self.model is None:
+            X_arr = np.asarray(X_train)
+            if X_arr.ndim != 3:
+                raise ValueError(
+                    f"{self.name}.fit expected X_train with shape (B, T, F), "
+                    f"got {X_arr.shape}"
+                )
+            in_features = X_arr.shape[2]
+            self.model = AutoformerBackbone(
+                in_features=in_features,
+                seq_len=self.seq_len,
+                out_len=self.out_len,
+                d_model=self.d_model,
+                n_heads=self.n_heads,
+                e_layers=self.e_layers,
+                d_layers=self.d_layers,
+                d_ff=self.d_ff,
+                moving_avg=self.moving_avg,
+            ).to(self.device)
+            X_train = X_arr
+
+        # Ensure y_train is (B, out_len) to match model output
+        y_train = np.asarray(y_train)
+        if y_train.ndim == 1:
+            y_train = y_train.reshape(-1, self.out_len)
+
         X_train = torch.tensor(X_train, dtype=torch.float32).to(self.device)
         y_train = torch.tensor(y_train, dtype=torch.float32).to(self.device)
 
-        loader = DataLoader(TensorDataset(X_train, y_train),
-                            batch_size=self.batch_size,
-                            shuffle=True)
+        loader = DataLoader(
+            TensorDataset(X_train, y_train),
+            batch_size=self.batch_size,
+            shuffle=True,
+        )
 
         criterion = nn.MSELoss()
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
 
         self.model.train()
         for epoch in range(self.epochs):
-            total = 0
+            total = 0.0
             for Xb, yb in loader:
                 optimizer.zero_grad()
-                pred = self.model(Xb)
-                loss = criterion(pred, yb)
+                pred = self.model(Xb)        # (B, out_len)
+                loss = criterion(pred, yb)   # shapes now match
                 loss.backward()
                 optimizer.step()
                 total += loss.item()

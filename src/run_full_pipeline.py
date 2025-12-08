@@ -49,11 +49,12 @@ def main():
 
     # 2) MODEL SELECTION (all models except CNN and SACLSTM)
     # Keys must match MODEL_REGISTRY (CNN, SACLSTM, SCINET, RANDOM_FOREST, ...)
-    active_models = (
-        "SCINET,RANDOM_FOREST,XGBOOST,"
-        "RNN,MTSMFF,DILATED_RNN,"
-        "TRANSFORMER,TFT,PYRAFORMER,PREFORMER,AUTOFORMER"
-    )
+    #active_models = (
+    #    "SCINET,RANDOM_FOREST,XGBOOST,"
+    #   "RNN,MTSMFF,DILATED_RNN,"
+    #    "TRANSFORMER,TFT,PYRAFORMER,PREFORMER,AUTOFORMER"
+    #)
+    active_models ="CNN"
     run_module(
         "src.model_selection.run_selection",
         ROOT,

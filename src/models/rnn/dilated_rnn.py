@@ -151,11 +151,28 @@ class DilatedRNNModel(BaseModel):
     # Training
     # -----------------------------------------------------
     def fit(self, X_train, y_train, X_val=None, y_val=None):
+        # Ensure model is initialized even when prepare_data() was not called on this instance
+        if self.model is None:
+            if X_train.ndim != 3:
+                raise ValueError(
+                    f"{self.name}.fit expected X_train with shape (B, T, F), "
+                    f"got {X_train.shape}"
+                )
+            num_features = X_train.shape[2]
+            self.model = DilatedRNNBackbone(
+                input_size=num_features,
+                hidden_size=self.hidden_size,
+                dilations=self.dilations,
+            ).to(self.device)
+
         X_train = torch.tensor(X_train, dtype=torch.float32).to(self.device)
         y_train = torch.tensor(y_train, dtype=torch.float32).unsqueeze(1).to(self.device)
 
-        loader = DataLoader(TensorDataset(X_train, y_train),
-                            batch_size=self.batch_size, shuffle=True)
+        loader = DataLoader(
+            TensorDataset(X_train, y_train),
+            batch_size=self.batch_size,
+            shuffle=True,
+        )
 
         criterion = nn.MSELoss()
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
