@@ -74,9 +74,28 @@ class AutoCorrelation(nn.Module):
         self.value = nn.Linear(d_model, d_model)
         self.out = nn.Linear(d_model, d_model)
 
+    def _auto_corr(self, Q, K, V):
+        """
+        Q, K, V: (B, T, H, Hd) with the same T
+        """
+        B, T, H, Hd = K.shape
+
+        # FFT along time
+        Q_fft = torch.fft.rfft(Q, dim=1)      # (B, T_f, H, Hd)
+        K_fft = torch.fft.rfft(K, dim=1)      # (B, T_f, H, Hd)
+
+        AC = Q_fft * torch.conj(K_fft)
+        corr = torch.fft.irfft(AC, n=T, dim=1)  # (B, T, H, Hd)
+
+        out = corr * V                         # (B, T, H, Hd)
+        B2, T2, H2, Hd2 = out.shape
+        out = out.reshape(B2, T2, H2 * Hd2)    # (B, T, D)
+        return self.out(out)
+
     def forward(self, x: torch.Tensor):
         """
-        x: (B, T, D)
+        Self auto-correlation:
+        x: (B, T, D) -> (B, T, D)
         """
         B, T, D = x.shape
         H = self.n_heads
@@ -86,20 +105,38 @@ class AutoCorrelation(nn.Module):
         K = self.key(x).view(B, T, H, Hd)
         V = self.value(x).view(B, T, H, Hd)
 
-        # Auto-correlation uses frequency domain correlations
-        Q_fft = torch.fft.rfft(Q, dim=1)
-        K_fft = torch.fft.rfft(K, dim=1)
-        
-        # elementwise product in frequency domain
-        AC = Q_fft * torch.conj(K_fft)
-        
-        # back to time domain
-        corr = torch.fft.irfft(AC, n=T, dim=1)  # (B, T, H, Hd)
+        return self._auto_corr(Q, K, V)
 
-        # weight values by correlation
-        out = corr * V
-        out = out.reshape(B, T, D)
-        return self.out(out)
+    def cross_attend(self, query: torch.Tensor, memory: torch.Tensor):
+        """
+        Cross auto-correlation:
+        query:  (B, T_q, D)
+        memory: (B, T_m, D)
+        Returns: (B, T_q, D)
+        """
+        Bq, T_q, D = query.shape
+        Bm, T_m, Dm = memory.shape
+        assert Bq == Bm and D == Dm, "batch and feature dims must match"
+
+        H = self.n_heads
+        Hd = self.head_dim
+
+        # If encoder length != decoder length, interpolate encoder along time
+        if T_m != T_q:
+            # (B, T_m, D) -> (B, D, T_m)
+            mem = memory.permute(0, 2, 1)
+            mem = torch.nn.functional.interpolate(
+                mem, size=T_q, mode="linear", align_corners=False
+            )  # (B, D, T_q)
+            memory = mem.permute(0, 2, 1)  # (B, T_q, D)
+            T_m = T_q
+
+        # Now T_m == T_q == T
+        Q = self.query(query).view(Bq, T_q, H, Hd)    # (B, T, H, Hd)
+        K = self.key(memory).view(Bm, T_m, H, Hd)     # (B, T, H, Hd)
+        V = self.value(memory).view(Bm, T_m, H, Hd)   # (B, T, H, Hd)
+
+        return self._auto_corr(Q, K, V)
 
 
 # ---------------------------------------------------------
@@ -145,8 +182,11 @@ class AutoformerDecoderLayer(nn.Module):
         )
 
     def forward(self, x, memory):
-        seasonal, trend = self.decomp1(x)
-        attn_out = self.cross_attn(memory)
+        # x: (B, T_dec, D), memory: (B, T_enc, D)
+        seasonal, trend = self.decomp1(x)           # seasonal: (B, T_dec, D)
+        attn_out = self.cross_attn.cross_attend(
+            seasonal, memory
+        )                                           # (B, T_dec, D)
         seasonal2, _ = self.decomp2(seasonal + attn_out)
         ff_out = self.ff(seasonal2)
         return seasonal2 + ff_out, trend
@@ -220,7 +260,6 @@ class AutoformerBackbone(nn.Module):
         for layer in self.decoder_layers:
             seasonal, trend = layer(dec_x, memory)  # both (B, T_dec, D)
             dec_x = seasonal
-            # refine trend by adding decoder trend
             trend_base = trend_base + trend
 
         # Final output projection: combine seasonal + trend components
@@ -368,7 +407,7 @@ class AutoformerModel(BaseModel):
             for Xb, yb in loader:
                 optimizer.zero_grad()
                 pred = self.model(Xb)        # (B, out_len)
-                loss = criterion(pred, yb)   # shapes now match
+                loss = criterion(pred, yb)
                 loss.backward()
                 optimizer.step()
                 total += loss.item()

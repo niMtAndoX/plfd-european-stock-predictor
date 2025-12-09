@@ -22,7 +22,7 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # --- Timespan of collected data ---
 end_date = datetime.today()
-start_date = "2005-01-01"
+start_date = "2015-01-01"
 
 
 def download_index(ticker, start, end):
