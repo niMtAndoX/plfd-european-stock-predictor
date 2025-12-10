@@ -9,6 +9,7 @@ from pathlib import Path
 import pandas as pd
 import os
 import sys
+import json  # <-- needed for JSON load/save
 
 print("[run_selection] Module imported")  
 
@@ -51,6 +52,52 @@ def main():
     print("\n=== Best params per model ===")
     for name, info in results.items():
         print(f"{name}: RMSE={info['cv_rmse']:.6f}, params={info['best_params']}")
+
+    # ------------------------------------------------------------------
+    # Determine the globally best model from this run
+    # ------------------------------------------------------------------
+    best_model_name = min(
+        results.keys(),
+        key=lambda m: results[m]["cv_rmse"],
+    )
+    best_entry = results[best_model_name]
+
+    run_best_record = {
+        "model_name": best_model_name,
+        "cv_rmse": best_entry["cv_rmse"],
+        "best_params": best_entry["best_params"],
+    }
+
+    # ------------------------------------------------------------------
+    # Append / merge into JSON file without losing previous content
+    # ------------------------------------------------------------------
+    if OUTPUT_PATH.exists():
+        with OUTPUT_PATH.open("r", encoding="utf-8") as f:
+            stored = json.load(f)
+    else:
+        stored = {}
+
+    # Merge current per-model results into stored dict
+    # (keeps previous models unless overwritten by same key)
+    stored.update(results)
+
+    # Maintain a history of global bests
+    history = stored.get("global_best_history", [])
+    history.append(run_best_record)
+    stored["global_best_history"] = history
+
+    # Also store the currently best model across all runs for convenience
+    # (lowest cv_rmse in history)
+    overall_best = min(history, key=lambda r: r["cv_rmse"])
+    stored["global_best"] = overall_best
+
+    with OUTPUT_PATH.open("w", encoding="utf-8") as f:
+        json.dump(stored, f, indent=2)
+
+    print(
+        f"[run_selection] Global best this run: {best_model_name} "
+        f"(cv_rmse={best_entry['cv_rmse']:.6f})"
+    )
 
 
 if __name__ == "__main__":

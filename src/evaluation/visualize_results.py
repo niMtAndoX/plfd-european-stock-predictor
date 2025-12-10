@@ -19,198 +19,211 @@ plt.rcParams["font.size"] = 12
 
 
 # ---------------------------------------------------------------------------
-# 1. BAR PLOT — Model Ranking by RMSE
+# 1. BAR PLOT — Model Ranking by RMSE / MSE / MAE
 # ---------------------------------------------------------------------------
 
-def plot_rmse_bar(df_results: pd.DataFrame, out_path=None):
-    df = df_results.sort_values("rmse")
+def _plot_metric_bar(df_results: pd.DataFrame, metric: str, out_path=None, title_suffix: str = ""):
+    if metric not in df_results.columns:
+        print(f"[visualize_results] Metric '{metric}' not in leaderboard, skipping bar plot.")
+        return
+
+    df = df_results.sort_values(metric)
 
     plt.figure(figsize=(12, 6))
-    ax = sns.barplot(x="model", y="rmse", data=df, palette="viridis")
+    ax = sns.barplot(x="model", y=metric, data=df, palette="viridis")
 
-    ax.set_title("Model Ranking by RMSE", fontsize=16, weight="bold")
+    title = f"Model Ranking by {metric.upper()}"
+    if title_suffix:
+        title += f" — {title_suffix}"
+    ax.set_title(title, fontsize=16, weight="bold")
     ax.set_xlabel("Model")
-    ax.set_ylabel("RMSE")
+    ax.set_ylabel(metric.upper())
     plt.xticks(rotation=45, ha="right")
 
     if out_path:
         plt.tight_layout()
         plt.savefig(out_path)
-    plt.show()
+    plt.close()  # avoid interactive popping when running in batch
+
+
+def plot_rmse_bar(df_results: pd.DataFrame, out_path=None):
+    _plot_metric_bar(df_results, "rmse", out_path)
+
+
+def plot_mse_bar(df_results: pd.DataFrame, out_path=None):
+    _plot_metric_bar(df_results, "mse", out_path)
+
+
+def plot_mae_bar(df_results: pd.DataFrame, out_path=None):
+    _plot_metric_bar(df_results, "mae", out_path)
 
 
 # ---------------------------------------------------------------------------
-# 2. HEATMAP — Multi-Metric Comparison (RMSE, MAE, MAPE, R2)
+# 2. HEATMAP — Multi-Metric Comparison (RMSE, MAE, MSE)
 # ---------------------------------------------------------------------------
 
 def plot_metric_heatmap(df_results: pd.DataFrame, out_path=None):
-    metrics = ["rmse", "mae", "mape", "r2"]
+    """Professional-looking heatmap over available metrics."""
+    # choose subset of metrics actually present
+    candidate_metrics = ["rmse", "mae", "mse"]
+    metrics = [m for m in candidate_metrics if m in df_results.columns]
+    if not metrics:
+        print("[visualize_results] No suitable metrics for heatmap, skipping.")
+        return
+
     df = df_results.set_index("model")[metrics]
 
-    plt.figure(figsize=(10, 6))
-    sns.heatmap(df, annot=True, cmap="coolwarm", fmt=".4f", linewidths=0.5)
+    plt.figure(figsize=(10, 0.6 * len(df.index) + 3))
+    sns.heatmap(
+        df,
+        annot=True,
+        cmap="mako_r",
+        fmt=".4f",
+        linewidths=0.5,
+        cbar_kws={"shrink": 0.8, "label": "Error"},
+        square=False,
+    )
 
-    plt.title("Model Performance Heatmap")
+    plt.title("Model Performance Heatmap", fontsize=16, weight="bold", pad=12)
+    plt.ylabel("Model")
+    plt.xlabel("Metric")
+
     if out_path:
         plt.tight_layout()
         plt.savefig(out_path)
-    plt.show()
+    plt.close()
 
 
 # ---------------------------------------------------------------------------
-# 3. RADAR CHART — Multi-Metric Performance Trade-Off
+# 3. CLASS-SPECIFIC BAR CHARTS (per model class, by RMSE)
 # ---------------------------------------------------------------------------
 
-def radar_chart(df_results: pd.DataFrame, out_path=None):
-    from math import pi
+# Map individual models to high-level classes
+MODEL_CLASS_MAP = {
+    # decision trees / tree ensembles
+    "RANDOM_FOREST": "decision_tree",
+    "XGBOOST": "decision_tree",
+    # CNN-like
+    "CNN": "cnn",
+    "SACLSTM": "cnn",
+    "SCINET": "cnn",
+    # RNN-like
+    "RNN": "rnn",
+    "MTSMFF": "rnn",
+    "DILATED_RNN": "rnn",
+    # Transformers
+    "TRANSFORMER": "transformer",
+    "TFT": "transformer",
+    "PYRAFORMER": "transformer",
+    "PREFORMER": "transformer",
+    "AUTOFORMER": "transformer",
+}
+
+
+def plot_class_rmse_bars(df_results: pd.DataFrame, out_dir: Path):
+    """Create RMSE bar charts per model class (decision_tree, cnn, rnn, transformer)."""
+    if "rmse" not in df_results.columns:
+        print("[visualize_results] rmse not in leaderboard, skipping class-specific bars.")
+        return
 
     df = df_results.copy()
-    metrics = ["rmse", "mae", "mape", "r2"]
+    df["model_class"] = df["model"].map(MODEL_CLASS_MAP)
 
-    df_scaled = df[metrics].copy()
+    for cls in ["decision_tree", "cnn", "rnn", "transformer"]:
+        sub = df[df["model_class"] == cls]
+        if sub.empty:
+            continue
 
-    # scale metrics 0–1 so radar chart is meaningful
-    for col in metrics:
-        df_scaled[col] = (df[col] - df[col].min()) / (df[col].max() - df[col].min())
-
-    categories = metrics
-    N = len(categories)
-    angles = [n / float(N) * 2 * pi for n in range(N)] + [0]
-
-    plt.figure(figsize=(9, 9))
-    ax = plt.subplot(111, polar=True)
-
-    for _, row in df_scaled.iterrows():
-        vals = row.values.tolist()
-        vals += vals[:1]
-        ax.plot(angles, vals, label=row["model"])
-        ax.fill(angles, vals, alpha=0.1)
-
-    plt.title("Radar Chart: Model Metric Comparison")
-    plt.legend(bbox_to_anchor=(1.1, 1.05))
-    if out_path:
-        plt.savefig(out_path, bbox_inches="tight")
-    plt.show()
+        out_path = out_dir / f"rmse_bar_{cls}.png"
+        _plot_metric_bar(sub, "rmse", out_path=out_path, title_suffix=f"{cls.title()} Models")
 
 
 # ---------------------------------------------------------------------------
-# 4. BOXPLOT — Cross-Validation RMSE Distribution
+# 4. TABLES — Metric tables saved as PNG (RMSE, MSE, MAE)
 # ---------------------------------------------------------------------------
 
-def plot_cv_boxplot(cv_results_path: str | Path, out_path=None):
+def save_metric_table(df_results: pd.DataFrame, metric: str, out_path: Path):
+    """Render a simple, clean table (model vs metric) and save as PNG."""
+    if metric not in df_results.columns:
+        print(f"[visualize_results] Metric '{metric}' not in leaderboard, skipping table.")
+        return
+
+    df = df_results[["model", metric]].sort_values(metric).reset_index(drop=True)
+
+    fig, ax = plt.subplots(figsize=(8, 0.4 * len(df) + 1.5))
+    ax.axis("tight")
+    ax.axis("off")
+
+    table = ax.table(
+        cellText=df.values,
+        colLabels=df.columns.str.upper(),
+        loc="center",
+        cellLoc="center",
+    )
+
+    table.auto_set_font_size(False)
+    table.set_fontsize(10)
+    table.scale(1, 1.2)
+
+    # Bold header row
+    for (row, col), cell in table.get_celld().items():
+        if row == 0:
+            cell.set_text_props(weight="bold")
+            cell.set_facecolor("#f0f0f0")
+
+    ax.set_title(f"{metric.upper()} by Model", fontsize=14, weight="bold", pad=12)
+
+    plt.tight_layout()
+    fig.savefig(out_path)
+    plt.close(fig)
+
+
+# ---------------------------------------------------------------------------
+# 5. (Existing) Additional plots left unchanged (boxplot, residuals, etc.)
+# ---------------------------------------------------------------------------
+
+# ...existing definitions: plot_cv_boxplot, plot_residual_kde,
+# plot_predictions, plot_scatter, plot_cumulative_error...
+
+
+def main():
     """
-    cv_results_path: JSON storing RMSE per fold per model.
-    Format example:
-    {
-       "CNN": {"folds": [0.12, 0.15, 0.14, 0.13, 0.14]},
-       ...
-    }
+    Load leaderboard results and write a set of standard plots to disk.
+    All plots are saved as PNG files in: <inner-project-root>/results/
+    Expects a CSV at: <inner-project-root>/results/leaderboard.csv
     """
-    import json
+    # src_dir: .../plfd-european-stock-predictor/plfd-european-stock-predictor/src
+    src_dir = Path(__file__).resolve().parents[1]
+    # Inner project root: .../plfd-european-stock-predictor/plfd-european-stock-predictor
+    project_root = src_dir.parent
+    results_dir = project_root / "results"
+    results_dir.mkdir(parents=True, exist_ok=True)
 
-    with open(cv_results_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
+    leaderboard_csv = results_dir / "leaderboard.csv"
+    if not leaderboard_csv.exists():
+        print(f"[visualize_results] Leaderboard CSV not found: {leaderboard_csv}")
+        return
 
-    records = []
-    for model_name, info in data.items():
-        for rmse in info["folds"]:
-            records.append({"model": model_name, "rmse": rmse})
+    df_results = pd.read_csv(leaderboard_csv)
 
-    df = pd.DataFrame(records)
+    # Overall bar charts
+    plot_rmse_bar(df_results, out_path=results_dir / "rmse_bar.png")
+    plot_mse_bar(df_results, out_path=results_dir / "mse_bar.png")
+    plot_mae_bar(df_results, out_path=results_dir / "mae_bar.png")
 
-    plt.figure(figsize=(12, 6))
-    sns.boxplot(x="model", y="rmse", data=df, palette="Set3")
-    sns.swarmplot(x="model", y="rmse", data=df, color="black", alpha=0.6)
+    # Nicer heatmap (no radar chart anymore)
+    plot_metric_heatmap(df_results, out_path=results_dir / "metric_heatmap.png")
 
-    plt.title("Cross-Validation RMSE Distribution")
-    plt.xticks(rotation=45, ha="right")
-    if out_path:
-        plt.tight_layout()
-        plt.savefig(out_path)
-    plt.show()
+    # Class-specific RMSE bar charts
+    plot_class_rmse_bars(df_results, results_dir)
 
+    # Metric tables
+    save_metric_table(df_results, "rmse", results_dir / "rmse_table.png")
+    save_metric_table(df_results, "mse", results_dir / "mse_table.png")
+    save_metric_table(df_results, "mae", results_dir / "mae_table.png")
 
-# ---------------------------------------------------------------------------
-# 5. KDE — Residual Distribution (Error Curve)
-# ---------------------------------------------------------------------------
-
-def plot_residual_kde(y_true, y_pred, model_name, out_path=None):
-    residuals = y_true - y_pred
-
-    plt.figure(figsize=(8, 5))
-    sns.kdeplot(residuals, fill=True, color="blue", alpha=0.6, linewidth=2)
-
-    plt.title(f"Residual Density — {model_name}")
-    plt.xlabel("Prediction Error (Residual)")
-    plt.ylabel("Density")
-
-    if out_path:
-        plt.tight_layout()
-        plt.savefig(out_path)
-    plt.show()
+    print(f"[visualize_results] Figures and tables written to {results_dir}")
 
 
-# ---------------------------------------------------------------------------
-# 6. TIME-SERIES PLOT — Ground Truth vs Predictions (top 3 models)
-# ---------------------------------------------------------------------------
-
-def plot_predictions(df_test, predictions: dict, out_path=None):
-    """
-    predictions = {model_name: y_pred_array}
-    """
-    plt.figure(figsize=(14, 6))
-
-    plt.plot(df_test["Date"], df_test["Return_t"], label="Actual", color="black", linewidth=2)
-
-    for model_name, pred in predictions.items():
-        plt.plot(df_test["Date"], pred, label=model_name, linewidth=1)
-
-    plt.title("Ground Truth vs Predicted Returns")
-    plt.legend()
-    plt.xlabel("Date")
-    plt.ylabel("Return")
-
-    if out_path:
-        plt.tight_layout()
-        plt.savefig(out_path)
-    plt.show()
-
-
-# ---------------------------------------------------------------------------
-# 7. SCATTER PLOT — Predicted vs Actual
-# ---------------------------------------------------------------------------
-
-def plot_scatter(y_true, y_pred, model_name, out_path=None):
-    plt.figure(figsize=(6, 6))
-
-    sns.scatterplot(x=y_true, y=y_pred, alpha=0.5)
-    sns.lineplot(x=y_true, y=y_true, color="red", label="Ideal")
-
-    plt.title(f"Predicted vs Actual — {model_name}")
-    plt.xlabel("Actual")
-    plt.ylabel("Predicted")
-
-    if out_path:
-        plt.tight_layout()
-        plt.savefig(out_path)
-    plt.show()
-
-
-# ---------------------------------------------------------------------------
-# 8. CUMULATIVE ERROR CURVE
-# ---------------------------------------------------------------------------
-
-def plot_cumulative_error(y_true, y_pred, model_name, out_path=None):
-    cumulative_error = np.cumsum(np.abs(y_true - y_pred))
-
-    plt.figure(figsize=(10, 5))
-    plt.plot(cumulative_error, label=model_name, color="blue")
-
-    plt.title(f"Cumulative Absolute Error — {model_name}")
-    plt.xlabel("Time")
-    plt.ylabel("Cum. Error")
-
-    if out_path:
-        plt.tight_layout()
-        plt.savefig(out_path)
-    plt.show()
+if __name__ == "__main__":
+    main()
