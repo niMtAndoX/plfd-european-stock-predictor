@@ -1,7 +1,7 @@
 from __future__ import annotations
 from xgboost import XGBRegressor
 from sklearn.metrics import mean_squared_error, mean_absolute_error
-from base_model import BaseModel
+from src.models.base_model import BaseModel
 import numpy as np
 import pandas as pd
 from typing import Dict, Tuple
@@ -43,8 +43,8 @@ class XGBoostModel(BaseModel):
         """
         df_clean = df.dropna().copy()
 
-        X = df_clean[super.feature_cols].astype(float).values
-        y = df_clean[super.target_col].astype(float).values
+        X = df_clean[self.feature_cols].astype(float).values
+        y = df_clean[self.target_col].astype(float).values
 
         return X, y
     
@@ -57,9 +57,12 @@ class XGBoostModel(BaseModel):
 
     def evaluate(self, X_test, y_test):
         preds = self.predict(X_test)
+        mse = mean_squared_error(y_test, preds)
+        rmse = float(np.sqrt(mse))
         return {
-            "mse": mean_squared_error(y_test, preds),
+            "mse": mse,
+            "rmse": rmse,  # required by cross_validate_on_dataframe
             "mae": mean_absolute_error(y_test, preds),
-            }
+        }
 
 

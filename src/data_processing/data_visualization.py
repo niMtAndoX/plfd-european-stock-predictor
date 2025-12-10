@@ -3,9 +3,11 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mtick
 from pathlib import Path
 
+# Base data directory: src/data_processing/data
+BASE_DATA_DIR = Path(__file__).resolve().parent / "data"
 
 # Use pathlib for OS-independent paths and verify files exist before reading
-csv_dir = Path("data") / "clean_features"
+csv_dir = BASE_DATA_DIR / "clean_features"
 csv_paths = {
     "SSE": csv_dir / "SSE_features.csv",
     "KOSPI": csv_dir / "KOSPI_features.csv",
@@ -15,8 +17,8 @@ csv_paths = {
 
 }
 
-# Output folder for images
-img_dir = Path("data") / "img"
+# Output folder for images: src/data_processing/data/img
+img_dir = BASE_DATA_DIR / "img"
 img_dir.mkdir(parents=True, exist_ok=True)  # <-- ensure output folder exists
 
 def plot_data_daily():

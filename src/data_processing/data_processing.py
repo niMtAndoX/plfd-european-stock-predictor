@@ -3,6 +3,9 @@ import pandas as pd
 from pathlib import Path
 from datetime import datetime
 
+# Base folder for all data relative to this script (src/data_processing/data)
+BASE_DATA_DIR = Path(__file__).resolve().parent / "data"
+
 # Index tickers
 TICKERS = {
     "SSE": "000001.SS",
@@ -13,13 +16,13 @@ TICKERS = {
     "NIKKEI225": "^N225"
 }
 
-# Output folder
-OUTPUT_DIR = Path("data/indices")
+# Output folder for raw index CSVs: src/data_processing/data/indices
+OUTPUT_DIR = BASE_DATA_DIR / "indices"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # --- Timespan of collected data ---
 end_date = datetime.today()
-start_date = "2005-01-01"
+start_date = "2015-01-01"
 
 
 def download_index(ticker, start, end):
@@ -36,6 +39,8 @@ def load_data():
     for name, ticker in TICKERS.items():
         print(f"Downloading {name} ({ticker})...")
         df = download_index(ticker, start_date, end_date)
+
+        print(f"{name}: downloaded shape = {df.shape}")  # ...existing code...
 
         # Add index name column for clarity
         df["Index"] = name
@@ -152,22 +157,24 @@ def build_clean_datasets(csv_paths):
 
 
 
+# Input CSV paths for feature building (point to src/data_processing/data/indices)
 csv_paths = {
-    "SSE": "data/indices/SSE_20yr_daily.csv",
-    "KOSPI": "data/indices/KOSPI_20yr_daily.csv",
-    "TAIEX": "data/indices/TAIEX_20yr_daily.csv",
-    #"PSEI": "data/indices/PSEI_20yr_daily.csv",
-    "STOXX600": "data/indices/STOXX600_20yr_daily.csv",
-    "NIKKEI225": "data/indices/NIKKEI225_20yr_daily.csv",
-
+    "SSE": str(OUTPUT_DIR / "SSE_20yr_daily.csv"),
+    "KOSPI": str(OUTPUT_DIR / "KOSPI_20yr_daily.csv"),
+    "TAIEX": str(OUTPUT_DIR / "TAIEX_20yr_daily.csv"),
+    #"PSEI": str(OUTPUT_DIR / "PSEI_20yr_daily.csv"),
+    "STOXX600": str(OUTPUT_DIR / "STOXX600_20yr_daily.csv"),
+    "NIKKEI225": str(OUTPUT_DIR / "NIKKEI225_20yr_daily.csv"),
 }
+
 
 def main():
     load_data()
 
     datasets = build_clean_datasets(csv_paths)
 
-    out_dir = Path("data/clean_features")
+    # Output clean features under src/data_processing/data/clean_features
+    out_dir = BASE_DATA_DIR / "clean_features"
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # Save each DataFrame
@@ -175,6 +182,7 @@ def main():
         out_path = out_dir / f"{name}_features.csv"
         df.reset_index().to_csv(out_path, index=False)
         print(f"Saved: {out_path}")
+
 
 if __name__ == "__main__":
     main()
