@@ -1,23 +1,23 @@
 {
   "CNN": {
     "best_params": {
-      "seq_len": 20,
-      "hidden_channels": 64,
-      "kernel_size": 3,
-      "dropout": 0.1,
-      "lr": 0.0001
+      "seq_len": 40,
+      "hidden_channels": 32,
+      "kernel_size": 5,
+      "dropout": 0.2,
+      "lr": 0.001
     },
-    "cv_rmse": 0.012227676470628206
+    "cv_rmse": 0.011153843853241523
   },
   "SACLSTM": {
     "best_params": {
-      "seq_len": 30,
-      "conv_channels": 16,
-      "kernel_size": 3,
-      "lstm_hidden": 32,
+      "seq_len": 20,
+      "conv_channels": 32,
+      "kernel_size": 5,
+      "lstm_hidden": 64,
       "lr": 0.0001
     },
-    "cv_rmse": 0.012234844618990659
+    "cv_rmse": 0.011137921429956024
   },
   "SCINET": {
     "best_params": {
@@ -27,44 +27,44 @@
       "hidden_channels": 32,
       "kernel_size": 5
     },
-    "cv_rmse": 0.012680654009416212
+    "cv_rmse": 0.01151653545025621
   },
   "RANDOM_FOREST": {
     "best_params": {
-      "n_estimators": 500,
-      "max_depth": null,
-      "min_samples_leaf": 3,
+      "n_estimators": 200,
+      "max_depth": 8,
+      "min_samples_leaf": 5,
       "min_samples_split": 2
     },
-    "cv_rmse": 0.009324252559096127
+    "cv_rmse": 0.0108520877231699
   },
   "XGBOOST": {
     "best_params": {
-      "n_estimators": 300,
-      "learning_rate": 0.05,
+      "n_estimators": 600,
+      "learning_rate": 0.01,
       "max_depth": 3,
       "subsample": 0.7
     },
-    "cv_rmse": 0.00882803919071557
+    "cv_rmse": 0.010814915973512125
   },
   "RNN": {
     "best_params": {
-      "seq_len": 30,
-      "hidden_size": 64,
-      "num_layers": 2,
+      "seq_len": 20,
+      "hidden_size": 32,
+      "num_layers": 1,
       "lr": 0.0001
     },
-    "cv_rmse": 0.012278904429747745
+    "cv_rmse": 0.011199519890187453
   },
   "MTSMFF": {
     "best_params": {
       "seq_len": 20,
       "out_len": 1,
-      "enc_hidden": 32,
+      "enc_hidden": 64,
       "num_layers": 1,
-      "dropout": 0.2
+      "dropout": 0.1
     },
-    "cv_rmse": 0.012281769567381372
+    "cv_rmse": 0.011187119137763043
   },
   "DILATED_RNN": {
     "best_params": {
@@ -77,67 +77,67 @@
       ],
       "lr": 0.0001
     },
-    "cv_rmse": 0.012237735694201137
+    "cv_rmse": 0.011125604980125452
   },
   "TRANSFORMER": {
     "best_params": {
       "seq_len": 20,
       "d_model": 64,
-      "nhead": 4,
-      "num_layers": 1
+      "nhead": 2,
+      "num_layers": 2
     },
-    "cv_rmse": 0.012392855320485185
+    "cv_rmse": 0.011218877257386628
   },
   "TFT": {
     "best_params": {
-      "seq_len": 30,
-      "out_len": 3,
-      "d_model": 32,
-      "lstm_hidden": 32,
-      "nhead": 2
-    },
-    "cv_rmse": 0.012617572942335602
-  },
-  "PYRAFORMER": {
-    "best_params": {
       "seq_len": 20,
       "out_len": 3,
-      "d_model": 32,
-      "n_heads": 2,
-      "num_layers": 2
+      "d_model": 64,
+      "lstm_hidden": 64,
+      "nhead": 2
     },
-    "cv_rmse": 0.012883082312859126
+    "cv_rmse": 0.0113048621972281
   },
-  "PREFORMER": {
+  "PYRAFORMER": {
     "best_params": {
       "seq_len": 30,
       "out_len": 1,
       "d_model": 32,
-      "seg_lens": [
-        8,
-        16
-      ],
-      "num_layers": 1
+      "n_heads": 2,
+      "num_layers": 2
     },
-    "cv_rmse": 0.01299864559111642
+    "cv_rmse": 0.011561237723886699
+  },
+  "PREFORMER": {
+    "best_params": {
+      "seq_len": 20,
+      "out_len": 1,
+      "d_model": 32,
+      "seg_lens": [
+        4,
+        8
+      ],
+      "num_layers": 2
+    },
+    "cv_rmse": 0.011302050291522175
   },
   "AUTOFORMER": {
     "best_params": {
       "seq_len": 20,
       "out_len": 3,
       "d_model": 32,
-      "moving_avg": 12,
+      "moving_avg": 25,
       "e_layers": 1
     },
-    "cv_rmse": 0.012358197194987451
+    "cv_rmse": 0.011253769206043452
   },
   "global_best_history": [
     {
       "model_name": "XGBOOST",
-      "cv_rmse": 0.00882803919071557,
+      "cv_rmse": 0.010814915973512125,
       "best_params": {
-        "n_estimators": 300,
-        "learning_rate": 0.05,
+        "n_estimators": 600,
+        "learning_rate": 0.01,
         "max_depth": 3,
         "subsample": 0.7
       }
@@ -145,10 +145,10 @@
   ],
   "global_best": {
     "model_name": "XGBOOST",
-    "cv_rmse": 0.00882803919071557,
+    "cv_rmse": 0.010814915973512125,
     "best_params": {
-      "n_estimators": 300,
-      "learning_rate": 0.05,
+      "n_estimators": 600,
+      "learning_rate": 0.01,
       "max_depth": 3,
       "subsample": 0.7
     }
