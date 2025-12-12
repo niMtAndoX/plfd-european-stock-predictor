@@ -156,6 +156,49 @@ def build_clean_datasets(csv_paths):
     return result
 
 
+def build_stoxx600_with_asian_features(datasets: dict) -> pd.DataFrame:
+    """
+    Build a single DataFrame with:
+      - target: STOXX600 Return_t
+      - features: aggregated Asian features (mean across SSE, KOSPI, TAIEX, NIKKEI225)
+        for: Return_t_1, Return_t_2, Return_t_3, SMA_5, SMA_10, STD_5.
+      - index: Date, later reset to 'Date' column.
+    """
+    import pandas as pd  # safe local import
+
+    asian_indices = ["SSE", "KOSPI", "TAIEX", "NIKKEI225"]
+    base_features = ["Return_t_1", "Return_t_2", "Return_t_3", "SMA_5", "SMA_10", "STD_5"]
+
+    # Start from STOXX600 target
+    if "STOXX600" not in datasets:
+        raise KeyError("STOXX600 dataset missing in build_stoxx600_with_asian_features.")
+    target = datasets["STOXX600"][["Return_t"]].copy()
+
+    # Collect Asian features as a MultiIndex column DataFrame
+    frames = []
+    for idx_name in asian_indices:
+        if idx_name not in datasets:
+            raise KeyError(f"{idx_name} dataset missing in build_stoxx600_with_asian_features.")
+        sub = datasets[idx_name][base_features].copy()
+        # Level-0 = index name, Level-1 = feature name
+        sub.columns = pd.MultiIndex.from_product([[idx_name], base_features])
+        frames.append(sub)
+
+    if not frames:
+        raise ValueError("No Asian index datasets found to build combined features.")
+
+    features_multi = pd.concat(frames, axis=1)
+    # Aggregate across indices to get one column per base feature
+    agg_features = features_multi.groupby(level=1, axis=1).mean()
+
+    # Join target and features on the Date index, drop any remaining NaNs
+    combined = target.join(agg_features, how="inner").dropna()
+
+    # Move index (Date) to a column
+    combined = combined.reset_index().rename(columns={"index": "Date"})
+    return combined
+
+
 
 # Input CSV paths for feature building (point to src/data_processing/data/indices)
 csv_paths = {
@@ -177,11 +220,17 @@ def main():
     out_dir = BASE_DATA_DIR / "clean_features"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # Save each DataFrame
+    # Save each per-index DataFrame
     for name, df in datasets.items():
         out_path = out_dir / f"{name}_features.csv"
         df.reset_index().to_csv(out_path, index=False)
         print(f"Saved: {out_path}")
+
+    # NEW: save combined STOXX600 + aggregated Asian features
+    combined_df = build_stoxx600_with_asian_features(datasets)
+    combined_path = out_dir / "STOXX600_with_asian_features.csv"
+    combined_df.to_csv(combined_path, index=False)
+    print(f"Saved: {combined_path}")
 
 
 if __name__ == "__main__":

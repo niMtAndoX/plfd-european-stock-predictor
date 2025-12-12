@@ -59,9 +59,9 @@ def main():
     # Toggle steps here or via env vars:
     #   RUN_ETL, RUN_SELECTION, RUN_EVAL, RUN_VIZ
     # ------------------------------------------------------------------
-    RUN_ETL = str_to_bool(os.getenv("RUN_ETL"), False)
-    RUN_SELECTION = str_to_bool(os.getenv("RUN_SELECTION"), False)
-    RUN_EVAL = str_to_bool(os.getenv("RUN_EVAL"), False)
+    RUN_ETL = str_to_bool(os.getenv("RUN_ETL"), True)
+    RUN_SELECTION = str_to_bool(os.getenv("RUN_SELECTION"), True)
+    RUN_EVAL = str_to_bool(os.getenv("RUN_EVAL"), True)
     RUN_VIZ = str_to_bool(os.getenv("RUN_VIZ"), True)
 
     # 1) ETL PIPELINE
