@@ -1,13 +1,5 @@
-# tft_model.py
-#
-# Simplified Temporal Fusion Transformer (TFT-style)
-# for multivariate time series forecasting.
-#
-# Compatible with your BaseModel interface.
-
 from __future__ import annotations
 from typing import Dict
-
 import numpy as np
 import pandas as pd
 import torch

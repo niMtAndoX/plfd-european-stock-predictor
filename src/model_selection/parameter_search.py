@@ -4,16 +4,15 @@ Grid search over each model's hyperparameter space using K-fold CV.
 
 from __future__ import annotations
 from typing import Dict, Any, Tuple
-
 import itertools
 import json
 from pathlib import Path
 import os
+import pandas as pd  
 
 from .model_registry import MODEL_REGISTRY
 from .cross_validation import cross_validate_on_dataframe
 
-import pandas as pd  
 
 
 def param_grid(search_space: Dict[str, list]):

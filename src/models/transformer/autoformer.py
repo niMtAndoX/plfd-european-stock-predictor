@@ -1,9 +1,4 @@
-# Simplified Autoformer implementation (Auto-Correlation + Series Decomposition)
-# Compatible with your BaseModel interface.
-
 from __future__ import annotations
-from typing import Dict
-
 import numpy as np
 import pandas as pd
 import torch
@@ -362,7 +357,6 @@ class AutoformerModel(BaseModel):
     # Training
     # -----------------------------------------------------
     def fit(self, X_train, y_train, X_val=None, y_val=None):
-        # Lazily initialize backbone if prepare_data() was not called on this instance
         if self.model is None:
             X_arr = np.asarray(X_train)
             if X_arr.ndim != 3:

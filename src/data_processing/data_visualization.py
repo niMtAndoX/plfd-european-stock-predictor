@@ -19,7 +19,7 @@ csv_paths = {
 
 # Output folder for images: src/data_processing/data/img
 img_dir = BASE_DATA_DIR / "img"
-img_dir.mkdir(parents=True, exist_ok=True)  # <-- ensure output folder exists
+img_dir.mkdir(parents=True, exist_ok=True)
 
 def plot_data_daily():
     for name, path in csv_paths.items():
@@ -75,7 +75,7 @@ def plot_all_in_one_daily():
     plt.xlabel("Date")
     plt.ylabel("Return_t")
     ax = plt.gca()
-    ax.yaxis.set_major_formatter(mtick.PercentFormatter(xmax=1))  # <-- als %
+    ax.yaxis.set_major_formatter(mtick.PercentFormatter(xmax=1))  # <-- as %
     plt.title("Return_t over time — all indices")
     plt.legend()
     plt.tight_layout()
@@ -97,7 +97,6 @@ def plot_data_yearly():
         df = df.set_index("Date")
 
         # --- Compute yearly performance & volatility ---
-        # We assume Return_t is daily return, e.g. pct_change-based
         # 1) Compute cumulative annual return
         yearly_return = (1 + df["Return_t"]).resample("YE").prod() - 1
 
@@ -116,13 +115,13 @@ def plot_data_yearly():
         ax1.plot(yearly_df.index.year, yearly_df["Return"], label="Annual Return", marker="o")
         ax1.set_xlabel("Year")
         ax1.set_ylabel("Return", color="blue")
-        ax1.yaxis.set_major_formatter(mtick.PercentFormatter(xmax=1))  # <-- als %
+        ax1.yaxis.set_major_formatter(mtick.PercentFormatter(xmax=1))  # <-- as %
         ax1.tick_params(axis="y", labelcolor="blue")
 
         ax2 = ax1.twinx()
         ax2.bar(yearly_df.index.year, yearly_df["Volatility"], alpha=0.3, color="gray", label="Annual Volatility")
         ax2.set_ylabel("Volatility (annualized)", color="gray")
-        ax2.yaxis.set_major_formatter(mtick.PercentFormatter(xmax=1))  # <-- als %
+        ax2.yaxis.set_major_formatter(mtick.PercentFormatter(xmax=1))  # <-- as %
         ax2.tick_params(axis="y", labelcolor="gray")
 
         plt.title(f"{name} — Yearly Return & Volatility")
@@ -153,7 +152,7 @@ def plot_all_in_one_yearly():
     plt.xlabel("Year")
     plt.ylabel("Annual Return")
     ax = plt.gca()
-    ax.yaxis.set_major_formatter(mtick.PercentFormatter(xmax=1))  # <-- als %
+    ax.yaxis.set_major_formatter(mtick.PercentFormatter(xmax=1))  # <-- as %
     plt.title("Annual Return by Index")
     plt.legend()
     plt.grid(True)

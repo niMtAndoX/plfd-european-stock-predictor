@@ -8,7 +8,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
-
 from pathlib import Path
 
 sns.set_theme(style="whitegrid")
@@ -177,15 +176,6 @@ def save_metric_table(df_results: pd.DataFrame, metric: str, out_path: Path):
     fig.savefig(out_path)
     plt.close(fig)
 
-
-# ---------------------------------------------------------------------------
-# 5. (Existing) Additional plots left unchanged (boxplot, residuals, etc.)
-# ---------------------------------------------------------------------------
-
-# ...existing definitions: plot_cv_boxplot, plot_residual_kde,
-# plot_predictions, plot_scatter, plot_cumulative_error...
-
-
 def main():
     """
     Load leaderboard results and write a set of standard plots to disk.
@@ -211,7 +201,7 @@ def main():
     plot_mse_bar(df_results, out_path=results_dir / "mse_bar.png")
     plot_mae_bar(df_results, out_path=results_dir / "mae_bar.png")
 
-    # Nicer heatmap (no radar chart anymore)
+    # heatmap (no radar chart anymore)
     plot_metric_heatmap(df_results, out_path=results_dir / "metric_heatmap.png")
 
     # Class-specific RMSE bar charts
