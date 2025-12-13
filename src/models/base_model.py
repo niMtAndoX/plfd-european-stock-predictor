@@ -8,16 +8,22 @@ class BaseModel(ABC):
 
     def __init__(self, name: str):
         self.name = name 
-        self.feature_cols = [
-        "Return_t_1",
-        "Return_t_2",
-        "Return_t_3",
-        "SMA_5",
-        "SMA_10",
-        "STD_5",
-        ]
+        # Features from Asian markets for predicting STOXX600
+        # Each Asian index contributes: Return_t, Return_t_1, Return_t_2, Return_t_3, SMA_5, SMA_10, STD_5
+        asian_indices = ["KOSPI", "SSE", "TAIEX", "NIKKEI225"]
+        self.feature_cols = []
+        for idx in asian_indices:
+            self.feature_cols.extend([
+                f"{idx}_Return_t",
+                f"{idx}_Return_t_1",
+                f"{idx}_Return_t_2",
+                f"{idx}_Return_t_3",
+                f"{idx}_SMA_5",
+                f"{idx}_SMA_10",
+                f"{idx}_STD_5",
+            ])
 
-        self.target_col = "Return_t"
+        self.target_col = "STOXX600_Return_t"
 
     
     # ---------- Data handling ----------

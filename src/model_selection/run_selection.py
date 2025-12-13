@@ -19,8 +19,9 @@ from .parameter_search import run_full_model_selection
 SRC_DIR = Path(__file__).resolve().parents[1]
 
 # Features written by data_processing.py to:
-#   src/data_processing/data/clean_features/STOXX600_features.csv
-DATA_PATH = SRC_DIR / "data_processing" / "data" / "clean_features" / "STOXX600_features.csv"
+#   src/data_processing/data/clean_features/merged_features.csv
+# This contains Asian market features (KOSPI, SSE, TAIEX, NIKKEI225) for predicting STOXX600
+DATA_PATH = SRC_DIR / "data_processing" / "data" / "clean_features" / "merged_features.csv"
 
 # Results output relative to inner project root (parent of src)
 PROJECT_ROOT = SRC_DIR.parent

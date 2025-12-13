@@ -182,6 +182,72 @@ def main():
         out_path = out_dir / f"{name}_features.csv"
         df.reset_index().to_csv(out_path, index=False)
         print(f"Saved: {out_path}")
+    
+    # Create merged dataset for cross-market prediction
+    merged_df = create_merged_dataset(datasets, out_dir)
+    print(f"\nMerged dataset shape: {merged_df.shape}")
+
+
+def create_merged_dataset(datasets: dict, out_dir: Path) -> pd.DataFrame:
+    """
+    Merge all Asian market features with STOXX600 target for cross-market prediction.
+    
+    Uses Asian indices (KOSPI, SSE, TAIEX, NIKKEI225) as features to predict STOXX600.
+    """
+    print("\n=== Creating merged dataset for cross-market prediction ===")
+    
+    # Define predictor indices (Asian markets)
+    predictor_indices = ["KOSPI", "SSE", "TAIEX", "NIKKEI225"]
+    target_index = "STOXX600"
+    
+    if target_index not in datasets:
+        raise ValueError(f"Target index {target_index} not found in datasets")
+    
+    # Start with STOXX600 as the base (contains the target variable)
+    # Reset index to make Date a column
+    stoxx_df = datasets[target_index].reset_index()
+    stoxx_df = stoxx_df.rename(columns={"Return_t": "STOXX600_Return_t"})
+    
+    # Remove STOXX600's own features (we'll only use it as target)
+    feature_cols_to_drop = [col for col in stoxx_df.columns if col.startswith(("Return_t_", "SMA_", "STD_"))]
+    stoxx_df = stoxx_df.drop(columns=feature_cols_to_drop)
+    
+    merged = stoxx_df.copy()
+    
+    # Add features from each Asian market
+    for idx_name in predictor_indices:
+        if idx_name not in datasets:
+            print(f"Warning: {idx_name} not found in datasets, skipping")
+            continue
+        
+        # Reset index to make Date a column
+        idx_df = datasets[idx_name].reset_index()
+        
+        # Rename columns to include index name
+        rename_map = {}
+        for col in idx_df.columns:
+            if col != "Date":
+                rename_map[col] = f"{idx_name}_{col}"
+        
+        idx_df = idx_df.rename(columns=rename_map)
+        
+        # Merge on Date (inner join to keep only common dates)
+        merged = merged.merge(idx_df, on="Date", how="inner")
+        print(f"Added {idx_name} features. Shape: {merged.shape}")
+    
+    # Reorder columns: Date first, target second, then all features
+    cols = ["Date", "STOXX600_Return_t"] + [col for col in merged.columns if col not in ["Date", "STOXX600_Return_t"]]
+    merged = merged[cols]
+    
+    # Save merged dataset
+    merged_path = out_dir / "merged_features.csv"
+    merged.to_csv(merged_path, index=False)
+    print(f"\nSaved merged dataset: {merged_path}")
+    print(f"Final shape: {merged.shape}")
+    print(f"Features: {len(merged.columns) - 2} (excluding Date and target)")
+    print(f"Date range: {merged['Date'].min()} to {merged['Date'].max()}")
+    
+    return merged
 
 
 if __name__ == "__main__":

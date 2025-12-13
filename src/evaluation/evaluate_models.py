@@ -99,7 +99,8 @@ def main():
     src_dir = Path(__file__).resolve().parents[1]   # .../src
     project_root = src_dir.parent                  # inner project root
 
-    data_path = src_dir / "data_processing" / "data" / "clean_features" / "STOXX600_features.csv"
+    # Use merged features for cross-market prediction (Asian markets -> STOXX600)
+    data_path = src_dir / "data_processing" / "data" / "clean_features" / "merged_features.csv"
     selection_json = project_root / "results" / "model_selection_results.json"
     leaderboard_csv = project_root / "results" / "leaderboard.csv"
 

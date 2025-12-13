@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+from datetime import datetime
 
 from pathlib import Path
 
@@ -30,7 +31,7 @@ def _plot_metric_bar(df_results: pd.DataFrame, metric: str, out_path=None, title
     df = df_results.sort_values(metric)
 
     plt.figure(figsize=(12, 6))
-    ax = sns.barplot(x="model", y=metric, data=df, palette="viridis")
+    ax = sns.barplot(x="model", y=metric, data=df, hue="model", palette="viridis", legend=False)
 
     title = f"Model Ranking by {metric.upper()}"
     if title_suffix:
@@ -186,43 +187,63 @@ def save_metric_table(df_results: pd.DataFrame, metric: str, out_path: Path):
 # plot_predictions, plot_scatter, plot_cumulative_error...
 
 
+def create_timestamped_results_folder(base_results_dir: Path, stage_name: str) -> tuple[Path, Path]:
+    """
+    Create a timestamped folder for results.
+    
+    Args:
+        base_results_dir: Base results directory (e.g., PROJECT_ROOT/results)
+        stage_name: Name of the stage (e.g., 'visualization')
+    
+    Returns:
+        (timestamped_folder, latest_folder): Paths to timestamped and main results folders
+    """
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    timestamped_folder = base_results_dir / f"{timestamp}_{stage_name}"
+    timestamped_folder.mkdir(parents=True, exist_ok=True)
+    
+    print(f"[{stage_name}] Created timestamped results folder: {timestamped_folder}")
+    return timestamped_folder, base_results_dir
+
+
 def main():
     """
     Load leaderboard results and write a set of standard plots to disk.
-    All plots are saved as PNG files in: <inner-project-root>/results/
+    Plots are saved to both timestamped folder and main results folder.
     Expects a CSV at: <inner-project-root>/results/leaderboard.csv
     """
     # src_dir: .../plfd-european-stock-predictor/plfd-european-stock-predictor/src
     src_dir = Path(__file__).resolve().parents[1]
     # Inner project root: .../plfd-european-stock-predictor/plfd-european-stock-predictor
     project_root = src_dir.parent
-    results_dir = project_root / "results"
-    results_dir.mkdir(parents=True, exist_ok=True)
+    base_results_dir = project_root / "results"
+    base_results_dir.mkdir(parents=True, exist_ok=True)
 
-    leaderboard_csv = results_dir / "leaderboard.csv"
+    leaderboard_csv = base_results_dir / "leaderboard.csv"
     if not leaderboard_csv.exists():
         print(f"[visualize_results] Leaderboard CSV not found: {leaderboard_csv}")
         return
 
     df_results = pd.read_csv(leaderboard_csv)
+    
+    # Create timestamped folder for this visualization run
+    timestamped_folder, latest_folder = create_timestamped_results_folder(
+        base_results_dir, "visualization"
+    )
 
-    # Overall bar charts
-    plot_rmse_bar(df_results, out_path=results_dir / "rmse_bar.png")
-    plot_mse_bar(df_results, out_path=results_dir / "mse_bar.png")
-    plot_mae_bar(df_results, out_path=results_dir / "mae_bar.png")
+    # Overall bar charts - save to both locations
+    for folder in [timestamped_folder, latest_folder]:
+        plot_rmse_bar(df_results, out_path=folder / "rmse_bar.png")
+        plot_mse_bar(df_results, out_path=folder / "mse_bar.png")
+        plot_mae_bar(df_results, out_path=folder / "mae_bar.png")
+        plot_metric_heatmap(df_results, out_path=folder / "metric_heatmap.png")
+        plot_class_rmse_bars(df_results, folder)
+        save_metric_table(df_results, "rmse", folder / "rmse_table.png")
+        save_metric_table(df_results, "mse", folder / "mse_table.png")
+        save_metric_table(df_results, "mae", folder / "mae_table.png")
 
-    # Nicer heatmap (no radar chart anymore)
-    plot_metric_heatmap(df_results, out_path=results_dir / "metric_heatmap.png")
-
-    # Class-specific RMSE bar charts
-    plot_class_rmse_bars(df_results, results_dir)
-
-    # Metric tables
-    save_metric_table(df_results, "rmse", results_dir / "rmse_table.png")
-    save_metric_table(df_results, "mse", results_dir / "mse_table.png")
-    save_metric_table(df_results, "mae", results_dir / "mae_table.png")
-
-    print(f"[visualize_results] Figures and tables written to {results_dir}")
+    print(f"[visualize_results] Timestamped figures saved to: {timestamped_folder}")
+    print(f"[visualize_results] Latest figures saved to: {latest_folder}")
 
 
 if __name__ == "__main__":
