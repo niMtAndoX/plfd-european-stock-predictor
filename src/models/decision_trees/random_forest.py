@@ -5,7 +5,7 @@ import pandas as pd
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 
-from src.models.base_model import BaseModel   # <-- use src.models here
+from src.models.base_model import BaseModel 
 
 
 class RandomForestModel(BaseModel):

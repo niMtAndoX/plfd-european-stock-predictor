@@ -114,7 +114,6 @@ class RNNModel(BaseModel):
     # Training
     # -----------------------------------------------------
     def fit(self, X_train, y_train, X_val=None, y_val=None):
-        # Ensure model is initialized even when prepare_data() was not called on this instance
         if self.model is None:
             if X_train.ndim != 3:
                 raise ValueError(

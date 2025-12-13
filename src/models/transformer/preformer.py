@@ -1,6 +1,5 @@
 from __future__ import annotations
 from typing import Dict, List
-
 import math
 import numpy as np
 import pandas as pd
@@ -273,7 +272,6 @@ class PreformerModel(BaseModel):
     # Training
     # -----------------------------------------------------
     def fit(self, X_train, y_train, X_val=None, y_val=None):
-        # Ensure model is initialized even when prepare_data() was not called
         if self.model is None:
             if isinstance(X_train, np.ndarray):
                 if X_train.ndim != 3:

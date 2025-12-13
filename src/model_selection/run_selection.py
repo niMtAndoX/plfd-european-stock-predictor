@@ -7,8 +7,6 @@ Usage (from inner project root, with PYTHONPATH=src):
 
 from pathlib import Path
 import pandas as pd
-import os
-import sys
 import json
 
 print("[run_selection] Module imported")  

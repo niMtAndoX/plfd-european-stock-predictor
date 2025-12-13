@@ -11,7 +11,6 @@ TICKERS = {
     "SSE": "000001.SS",
     "KOSPI": "^KS11",
     "TAIEX": "^TWII",
-   # "PSEI": "^PSEI",
     "STOXX600": "^STOXX",
     "NIKKEI225": "^N225"
 }
@@ -40,7 +39,7 @@ def load_data():
         print(f"Downloading {name} ({ticker})...")
         df = download_index(ticker, start_date, end_date)
 
-        print(f"{name}: downloaded shape = {df.shape}")  # ...existing code...
+        print(f"{name}: downloaded shape = {df.shape}") 
 
         # Add index name column for clarity
         df["Index"] = name
@@ -67,7 +66,7 @@ def build_clean_datasets(csv_paths):
     """
 
     # 1) Load all price series, one per index
-    price_series = {}  # {name: Series of prices}
+    price_series = {} 
 
     print("\n--- Loading raw CSVs and extracting price columns ---")
     for name, path in csv_paths.items():
@@ -164,7 +163,6 @@ def build_stoxx600_with_asian_features(datasets: dict) -> pd.DataFrame:
         for: Return_t_1, Return_t_2, Return_t_3, SMA_5, SMA_10, STD_5.
       - index: Date, later reset to 'Date' column.
     """
-    import pandas as pd  # safe local import
 
     asian_indices = ["SSE", "KOSPI", "TAIEX", "NIKKEI225"]
     base_features = ["Return_t_1", "Return_t_2", "Return_t_3", "SMA_5", "SMA_10", "STD_5"]
@@ -205,7 +203,6 @@ csv_paths = {
     "SSE": str(OUTPUT_DIR / "SSE_20yr_daily.csv"),
     "KOSPI": str(OUTPUT_DIR / "KOSPI_20yr_daily.csv"),
     "TAIEX": str(OUTPUT_DIR / "TAIEX_20yr_daily.csv"),
-    #"PSEI": str(OUTPUT_DIR / "PSEI_20yr_daily.csv"),
     "STOXX600": str(OUTPUT_DIR / "STOXX600_20yr_daily.csv"),
     "NIKKEI225": str(OUTPUT_DIR / "NIKKEI225_20yr_daily.csv"),
 }

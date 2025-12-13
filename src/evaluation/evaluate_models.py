@@ -6,7 +6,6 @@ STOXX600_with_asian_features.csv produced by the ETL step.
 
 from __future__ import annotations
 from typing import Dict
-
 from pathlib import Path
 import json
 import pandas as pd
